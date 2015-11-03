@@ -4,35 +4,63 @@ from __future__ import absolute_import, unicode_literals
 from __future__ import division, print_function
 
 import requests
+import dateutil.parser
 
 from bs4 import BeautifulSoup
-from datetime import datetime
 from unidecode import unidecode
-from dateutil import parser
+
+from .utils import get_stream_logger
 
 
 class DragonCon(object):
     def __init__(self):
+        self._log = get_stream_logger(__name__)
         self._site_main = None
+        self._start = None
+        self._end = None
+        self._dates_selector = '.region-countdown > div > h2'
 
     @property
     def site_main(self):
         if self._site_main is None:
             try:
                 r = requests.get('http://www.dragoncon.org/')
-                self._site_main = BeautifulSoup(r.text)
+                self._site_main = BeautifulSoup(r.text, 'lxml')
             except:
                 raise
         return self._site_main
 
-    def get_event_dates(self):
-        dateinfo = self.site_main.body.select('.region-countdown > div > h2')
-        if len(dateinfo) != 1:
-            raise ValueError('retrieved incorrect number of selected objects!')
-        dateinfo = dateinfo[0].get_text()
-        dateinfo = unidecode(dateinfo)
-        datestop = dateinfo.split('-')[-1].strip().replace(',', '')
-        datestart = dateinfo.split('-')[0].strip().replace(',', '')
-        dateend = parser.parse(datestop)
-        datestart = parser.parse('{0} {1}'.format(datestart, dateend.year))
-        return (datestart.date(), dateend.date())
+    @property
+    def start(self):
+        if self._start is None:
+            self._populate_dates()
+        return self._start
+
+    @property
+    def end(self):
+        if self._end is None:
+            self._populate_dates()
+        return self._end
+
+    def _populate_dates(self):
+        log = self._log
+        domdate = self.site_main.body.select(self._dates_selector)
+        domlen = len(domdate)
+        if domlen != 1:
+            errmsg = "incorrect number of objects ({0}) returned from '{1}'"
+            raise ValueError(errmsg.format(domlen, self._dates_selector))
+        dateinfo = unidecode(domdate[0].get_text())
+        parts = [p.strip().replace(',', ' ') for p in dateinfo.split('-')]
+        parts = [' '.join(p.split()) for p in parts]
+        log.debug(parts)
+        numparts = len(parts)
+        if numparts != 2:
+            errmsg = "incorrect number of dates detected: {0} from {1}"
+            errmsg = errmsg.format(numparts, parts)
+            log.error(errmsg)
+            raise ValueError(errmsg)
+        self._start = dateutil.parser.parse(parts[0]).date()
+        self._end = dateutil.parser.parse(parts[1]).date()
+        self._start = self._start.replace(year=self._end.year)
+        log.info("start date: {0}".format(self._start))
+        log.info("  end date: {0}".format(self._end))

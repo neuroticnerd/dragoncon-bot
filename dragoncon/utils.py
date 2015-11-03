@@ -4,6 +4,9 @@ from __future__ import absolute_import, unicode_literals
 from __future__ import division, print_function
 
 import logging
+import timeit
+
+from decimal import Decimal
 
 
 def get_stream_logger(logname, loglevel=logging.DEBUG):
@@ -19,3 +22,14 @@ def get_stream_logger(logname, loglevel=logging.DEBUG):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+
+def timed_function(func):
+    def timed_function_wrapper(*args, **kwargs):
+        ts = timeit.default_timer()
+        result = func(*args, **kwargs)
+        te = timeit.default_timer()
+        diff = round(Decimal(te - ts), 4)
+        return {'time': diff, 'result': result}
+
+    return timed_function_wrapper
