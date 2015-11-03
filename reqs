@@ -1,3 +1,8 @@
 greenlet==0.4.9
-requests==2.8.1
 gevent==1.1b6
+requests==2.8.1
+lxml==3.4.4
+beautifulsoup4==4.4.1
+python-dateutil==2.4.2
+Unidecode==0.4.18
+python-dateutil==2.4.2

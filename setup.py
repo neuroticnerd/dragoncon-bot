@@ -38,7 +38,7 @@ URL = "https://github.com/neuroticnerd/dragoncon-bot"
 REQUIRES = fread('reqs', True)
 SCRIPTS = {
     "console_scripts": [
-        'dcbot = dragoncon.bot:dcbot',
+        'dcbot = dragoncon.__main__:main',
     ]}
 
 with open('{0}/__init__.py'.format(PROJECT_MODULE), 'r') as modinit:
@@ -49,15 +49,15 @@ with open('{0}/__init__.py'.format(PROJECT_MODULE), 'r') as modinit:
         VERSION = '0.1.0'
 
 setup(
-    name = PROJECT,
-    version = VERSION,
-    packages = find_packages(include=[PROJECT_MODULE]),
-    author = AUTHOR,
-    author_email = EMAIL,
-    url = URL,
-    description = DESC,
-    long_description = LONG_DESC,
+    name=PROJECT,
+    version=VERSION,
+    packages=find_packages(include=[PROJECT_MODULE]),
+    author=AUTHOR,
+    author_email=EMAIL,
+    url=URL,
+    description=DESC,
+    long_description=LONG_DESC,
     license=LICENSE,
     install_requires=REQUIRES,
-    entry_points = SCRIPTS,
+    entry_points=SCRIPTS,
     )
