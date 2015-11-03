@@ -11,6 +11,7 @@ import timeit
 
 from decimal import Decimal
 from bs4 import BeautifulSoup
+from fuzzywuzzy import fuzz
 from .utils import get_stream_logger, timed_function
 
 
@@ -74,32 +75,32 @@ class ConHostHotels(object):
         baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
         searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
         unavailable = 'The hotel is not available for your requested travel dates.'
+        params = {
+            'Lang': 'en',
+            'accessibilityCheck': 'false',
+            'adults': numppl,
+            'childAge1': -1,
+            'childAge2': -1,
+            'childAge3': -1,
+            'childAge4': -1,
+            'corp_id': '',
+            'day1': start.day,
+            'day2': end.day,
+            'kids': 0,
+            'monthyear1': '{0:%-m} {0:%y}'.format(start),
+            'monthyear2': '{0:%-m} {0:%y}'.format(end),
+            'offercode': '',
+            'pid': 'atlra',
+            'rateType': 'Standard',
+            'rooms': 1,
+            'srcd': 'dayprop',
+        }
         try:
+            # the requests will redirect a number of times due to how their
+            # site processes the search requests
             s = requests.session()
             r = s.get(baseurl, timeout=rtimeout)
-            search = {
-                'Lang': 'en',
-                'accessibilityCheck': 'false',
-                'adults': numppl,
-                'childAge1': -1,
-                'childAge2': -1,
-                'childAge3': -1,
-                'childAge4': -1,
-                'corp_id': '',
-                'day1': start.day,
-                'day2': end.day,
-                'kids': 0,
-                'monthyear1': '{0:%-m} {0:%y}'.format(start),
-                'monthyear2': '{0:%-m} {0:%y}'.format(end),
-                'offercode': '',
-                'pid': 'atlra',
-                'rateType': 'Standard',
-                'rooms': 1,
-                'srcd': 'dayprop',
-            }
-
-            # this will redirect up to two times because of how their site works
-            r = s.get(searchurl, params=search, timeout=rtimeout)
+            r = s.get(searchurl, params=params, timeout=rtimeout)
             log.debug('[hyatt:rooms] [{0}]'.format(r.status_code))
             results = BeautifulSoup(r.text, 'lxml')
             errors = results.body.select('.error-block #msg .error')
@@ -120,8 +121,74 @@ class ConHostHotels(object):
         return {'stuff': 'things'}
 
     @timed_function
-    def hilton_room_availability(self, log, start, end):
-        log.debug('HILTON')
+    def hilton_room_availability(self, log, start, end, numppl=4):
+        rtimeout = 10
+        baseurl = 'http://www3.hilton.com'
+        home = '{0}/en/hotels/georgia/hilton-atlanta-ATLAHHH/index.html'
+        home = home.format(baseurl)
+        search = '{0}/en_US/hi/search/findhotels/index.htm'.format(baseurl)
+        params = {
+            'arrivalDate': '{0:%d} {0:%b} {0:%Y}'.format(start),
+            'departureDate': '{0:%d} {0:%b} {0:%Y}'.format(end),
+            '_aaaRate': 'on',
+            '_aarpRate': 'on',
+            '_flexibleDates': 'on',
+            '_governmentRate': 'on',
+            '_seniorRate': 'on',
+            '_travelAgencyRate': 'on',
+            'bookButton': 'false',
+            'corporateId': '',
+            'ctyhocn': 'ATLAHHH',
+            'groupCode': '',
+            'numberOfAdults[0]': numppl,
+            'numberOfAdults[1]': 1,
+            'numberOfAdults[2]': 1,
+            'numberOfAdults[3]': 1,
+            'numberOfAdults[4]': 1,
+            'numberOfAdults[5]': 1,
+            'numberOfAdults[6]': 1,
+            'numberOfAdults[7]': 1,
+            'numberOfAdults[8]': 1,
+            'numberOfChildren[0]': 0,
+            'numberOfChildren[1]': 0,
+            'numberOfChildren[2]': 0,
+            'numberOfChildren[3]': 0,
+            'numberOfChildren[4]': 0,
+            'numberOfChildren[5]': 0,
+            'numberOfChildren[6]': 0,
+            'numberOfChildren[7]': 0,
+            'numberOfChildren[8]': 0,
+            'numberOfRooms': 1,
+            'offerId': '',
+            'promoCode': '',
+            'roomKeyEnable': 'false',
+            'searchQuery': '',
+            'searchType': 'PROP',
+        }
+        unavailable = 'There are no rooms available for - at Hilton Atlanta'
+        try:
+            # the post will redirect a number of times due to how their
+            # site processes the search requests
+            s = requests.session()
+            r = s.get(home, timeout=rtimeout)
+            r = s.post(search, params=params, timeout=rtimeout)
+            log.debug('[hilton:rooms] [{0}]'.format(r.status_code))
+            results = BeautifulSoup(r.text, 'lxml')
+            alert_selector = 'div#main_content div#main div.alertBox p'
+            alertps = results.body.select(alert_selector)
+            alerts = []
+            for alertp in alertps:
+                errtext = alertp.findAll(text=True, recursive=False)
+                errtext = [t.strip() for t in errtext if t.strip() != '']
+                alerts.append(' '.join(errtext))
+            for error in alerts:
+                ratio = fuzz.ratio(error, unavailable)
+                log.debug('[hilton:rooms] [{0}] {1}'.format(ratio, error))
+                if ratio > 75:
+                    # there is an error
+                    pass
+        except requests.exceptions.ReadTimeout:
+            log.debug('[hilton:rooms] TIMEOUT')
         return {'stuff': 'things'}
 
     @timed_function
