@@ -192,6 +192,46 @@ class ConHostHotels(object):
         return {'stuff': 'things'}
 
     @timed_function
-    def mariott_room_availability(self, log, start, end):
-        log.debug('MARIOTT')
+    def mariott_room_availability(self, log, start, end, numppl=4):
+        rtimeout = 5
+        base = 'https://www.marriott.com'
+        home = '{0}/hotels/travel/atlmq-atlanta-marriott-marquis/'.format(base)
+        search = '{0}/reservation/availabilitySearch.mi'.format(base)
+        params = {
+            'fromDate': '{0:%m}/{0:%d}/{0:%Y}'.format(start),
+            'toDate': '{0:%m}/{0:%d}/{0:%Y}'.format(end),
+            'accountId': '',
+            'clusterCode': 'none',
+            'corporateCode': '',
+            'dateFormatPattern': '',
+            'flexibleDateSearch': 'false',
+            'flushSelectedRoomType': 'true',
+            'groupCode': '',
+            'includeNearByLocation': 'false',
+            'isHwsGroupSearch': 'true',
+            'isSearch': 'false',
+            'marriottRewardsNumber': '',
+            'miniStoreAvailabilitySear...': 'false',
+            'numberOfGuests': numppl,
+            'numberOfNights': 1,
+            'numberOfRooms': 1,
+            'propertyCode': 'atlmq',
+            'useRewardsPoints': 'false',
+        }
+        unavailable = 'Sorry, currently there are no rooms available at this '
+        unavailable += 'property for the dates you selected. '
+        unavailable += 'Please try your search again'
+        try:
+            s = requests.session()
+            r = s.get(home, timeout=rtimeout)
+            r = s.get(search, params=params, timeout=rtimeout)
+            results = BeautifulSoup(r.text, 'lxml')
+            noselector = '#popover-panel #no-rooms-available'
+            norooms = results.body.select(noselector)
+            if norooms:
+                norooms = norooms[0]
+            log.debug(norooms.get_text().strip())
+            #log.debug((unavailable in r.text))
+        except requests.exceptions.ReadTimeout:
+            log.debug('[mariott:rooms] TIMEOUT')
         return {'stuff': 'things'}
