@@ -9,7 +9,7 @@ import timeit
 from decimal import Decimal
 
 
-def get_stream_logger(logname, loglevel=logging.DEBUG):
+def get_stream_logger(logname, loglevel=logging.INFO):
     # https://gist.github.com/neuroticnerd/7c60d61c8d9d9716f50d
     logger = logging.getLogger(logname)
     logger.propagate = False

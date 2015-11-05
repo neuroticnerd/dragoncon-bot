@@ -41,11 +41,11 @@ class ConHostHotels(object):
         except Exception as e:
             log.error(e)
             gevent.killall(hotels)
-        log.debug([h.value for h in hotels])
+        log.info([h.value for h in hotels])
 
     def _monitor_rooms(self, friendly, availability_func):
         log = self._log
-        log.debug('monitoring {0} room availability'.format(friendly))
+        log.info('monitoring {0} room availability'.format(friendly))
         previous = timeit.default_timer()
         while True:
             try:
@@ -111,13 +111,13 @@ class ConHostHotels(object):
                         if t.strip() != '']
                     errtext = errtext[0] if len(errtext) > 0 else '<unavailable>'
                     log.debug('ERROR: {0}'.format(errtext))
-                log.debug('[hyatt:rooms] UNAVAILABLE')
+                log.info('[hyatt:rooms] UNAVAILABLE')
             else:
                 if unavailable in r.text:
                     raise ValueError('invalid detection of availability!')
-                log.debug('[hyatt:rooms] AVAILABLE')
+                log.info('[hyatt:rooms] AVAILABLE')
         except requests.exceptions.ReadTimeout:
-            log.debug('[hyatt:rooms] TIMEOUT')
+            log.error('[hyatt:rooms] TIMEOUT')
         return {'stuff': 'things'}
 
     @timed_function
@@ -185,10 +185,9 @@ class ConHostHotels(object):
                 ratio = fuzz.ratio(error, unavailable)
                 log.debug('[hilton:rooms] [{0}] {1}'.format(ratio, error))
                 if ratio > 75:
-                    # there is an error
-                    pass
+                    log.info(error)
         except requests.exceptions.ReadTimeout:
-            log.debug('[hilton:rooms] TIMEOUT')
+            log.error('[hilton:rooms] TIMEOUT')
         return {'stuff': 'things'}
 
     @timed_function
@@ -229,9 +228,10 @@ class ConHostHotels(object):
             noselector = '#popover-panel #no-rooms-available'
             norooms = results.body.select(noselector)
             if norooms:
-                norooms = norooms[0]
-            log.debug(norooms.get_text().strip())
-            #log.debug((unavailable in r.text))
+                norooms = norooms[0].get_text().strip()
+                log.info(norooms)
+                if not unavailable in norooms:
+                    raise ValueError('norooms present but unavailable not found')
         except requests.exceptions.ReadTimeout:
-            log.debug('[mariott:rooms] TIMEOUT')
+            log.error('[mariott:rooms] TIMEOUT')
         return {'stuff': 'things'}
