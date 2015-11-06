@@ -27,7 +27,7 @@ def fread(filename, split=False, keepnl=False):
     return result
 
 
-PROJECT_MODULE = 'dragoncon'
+PROJECT_MODULE = 'dragonite'
 PROJECT = 'dragoncon-bot'
 AUTHOR = 'Bryce Eggleton'
 EMAIL = 'eggleton.bryce@gmail.com'
@@ -38,7 +38,7 @@ URL = "https://github.com/neuroticnerd/dragoncon-bot"
 REQUIRES = fread('reqs', True)
 SCRIPTS = {
     "console_scripts": [
-        'dcbot = dragoncon.__main__:main',
+        'dragonite = dragonite.__main__:main',
     ]}
 
 with open('{0}/__init__.py'.format(PROJECT_MODULE), 'r') as modinit:
@@ -60,4 +60,4 @@ setup(
     license=LICENSE,
     install_requires=REQUIRES,
     entry_points=SCRIPTS,
-    )
+)
