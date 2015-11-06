@@ -7,6 +7,7 @@ import logging
 import timeit
 
 from decimal import Decimal
+from functools import wraps
 
 
 def get_stream_logger(logname, loglevel=logging.INFO):
@@ -17,7 +18,7 @@ def get_stream_logger(logname, loglevel=logging.INFO):
     formatter = logging.Formatter(
         fmt='[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
-        )
+    )
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -25,6 +26,7 @@ def get_stream_logger(logname, loglevel=logging.INFO):
 
 
 def timed_function(func):
+    @wraps(func)
     def timed_function_wrapper(*args, **kwargs):
         ts = timeit.default_timer()
         result = func(*args, **kwargs)

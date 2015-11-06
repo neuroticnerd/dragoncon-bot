@@ -74,7 +74,9 @@ class ConHostHotels(object):
         hyatturl = 'https://atlantaregency.hyatt.com'
         baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
         searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
-        unavailable = 'The hotel is not available for your requested travel dates.'
+        unavailable = (
+            'The hotel is not available for'
+            ' your requested travel dates.')
         params = {
             'Lang': 'en',
             'accessibilityCheck': 'false',
@@ -107,9 +109,11 @@ class ConHostHotels(object):
             if errors:
                 for err in errors:
                     errtext = [
-                        t.strip() for t in err.findAll(text=True, recursive=False)
+                        t.strip() for t in err.findAll(
+                            text=True, recursive=False)
                         if t.strip() != '']
-                    errtext = errtext[0] if len(errtext) > 0 else '<unavailable>'
+                    nothere = '<unavailable>'
+                    errtext = errtext[0] if len(errtext) > 0 else nothere
                     log.debug('ERROR: {0}'.format(errtext))
                 log.info('[hyatt:rooms] UNAVAILABLE')
             else:
@@ -230,8 +234,9 @@ class ConHostHotels(object):
             if norooms:
                 norooms = norooms[0].get_text().strip()
                 log.info(norooms)
-                if not unavailable in norooms:
-                    raise ValueError('norooms present but unavailable not found')
+                if unavailable not in norooms:
+                    errmsg = 'norooms present but unavailable not found'
+                    raise ValueError(errmsg)
         except requests.exceptions.ReadTimeout:
             log.error('[mariott:rooms] TIMEOUT')
         return {'stuff': 'things'}
