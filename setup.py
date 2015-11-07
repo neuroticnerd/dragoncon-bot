@@ -38,7 +38,7 @@ URL = "https://github.com/neuroticnerd/dragoncon-bot"
 REQUIRES = fread('reqs', True)
 SCRIPTS = {
     "console_scripts": [
-        'dragonite = dragonite.__main__:main',
+        'dragonite = dragonite.cli:dragonite',
     ]}
 
 with open('{0}/__init__.py'.format(PROJECT_MODULE), 'r') as modinit:

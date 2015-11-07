@@ -3,13 +3,8 @@
 from __future__ import absolute_import, unicode_literals
 from __future__ import division, print_function
 
-from .bot import DragonConBot
-
-
-def main():
-    dcbot = DragonConBot()
-    dcbot.run()
+from .cli import dragonite
 
 
 if __name__ == '__main__':
-    main()
+    dragonite()
