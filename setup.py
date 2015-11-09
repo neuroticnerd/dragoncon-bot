@@ -4,27 +4,9 @@ from __future__ import absolute_import, unicode_literals
 from __future__ import division, print_function
 
 import re
+
 from setuptools import setup, find_packages
-
-
-def fread(filename, split=False, keepnl=False):
-    """May raise IOError exceptions from file operations"""
-    result = ""
-    if split:
-        result = []
-    with open(filename, 'r') as f:
-        # use readme.read().decode("utf-8") instead?
-        for line in f:
-            tmpline = line
-            if line == '\n':
-                continue
-            if split:
-                if '#' in tmpline.strip()[:2]:
-                    continue
-                result.append(line.replace('\n', ''))
-            else:
-                result += line
-    return result
+from io import open
 
 
 PROJECT_MODULE = 'dragonite'
@@ -32,21 +14,45 @@ PROJECT = 'dragoncon-bot'
 AUTHOR = 'Bryce Eggleton'
 EMAIL = 'eggleton.bryce@gmail.com'
 DESC = 'Python utilities and tools'
-LONG_DESC = fread('README.md')
-LICENSE = fread('LICENSE')
 URL = "https://github.com/neuroticnerd/dragoncon-bot"
-REQUIRES = fread('reqs', True)
+REQUIRES = [
+    'click>=5.1',
+    'gevent>=1.1b6',
+    'lxml>=3.4.4',
+    'python-dateutil>=2.4.2',
+    'armory>=0.1.0',
+    'requests>=2.8.1',
+    'beautifulsoup4>=4.4.1',
+    'python-Levenshtein>=0.12.0',
+    'fuzzywuzzy>=0.7.0',
+    'Unidecode>=0.4.18',
+]
+EXTRAS = {
+    'dev': [
+        'flake8>=2.5.0',
+    ],
+}
 SCRIPTS = {
     "console_scripts": [
         'dragonite = dragonite.cli:dragonite',
     ]}
+LONG_DESC = ''
+LICENSE = ''
+VERSION = ''
 
-with open('{0}/__init__.py'.format(PROJECT_MODULE), 'r') as modinit:
+initfile = '{0}/__init__.py'.format(PROJECT_MODULE)
+with open(initfile, 'r', encoding='utf-8') as modinit:
     findver = re.compile(r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']', re.M)
     try:
         VERSION = findver.search(modinit.read()).group(1)
     except AttributeError:
         VERSION = '0.1.0'
+
+with open('README.md', 'r', encoding='utf-8') as f:
+    LONG_DESC = f.read()
+
+with open('LICENSE', 'r', encoding='utf-8') as f:
+    LICENSE = f.read()
 
 setup(
     name=PROJECT,
@@ -60,4 +66,5 @@ setup(
     license=LICENSE,
     install_requires=REQUIRES,
     entry_points=SCRIPTS,
+    extras_require=EXTRAS,
 )
