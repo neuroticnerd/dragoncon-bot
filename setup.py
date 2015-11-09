@@ -39,6 +39,12 @@ SCRIPTS = {
 LONG_DESC = ''
 LICENSE = ''
 VERSION = ''
+CLASSIFIERS = [
+    'Environment :: Console',
+    'Topic :: Utilities',
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3.5',
+]
 
 initfile = '{0}/__init__.py'.format(PROJECT_MODULE)
 with open(initfile, 'r', encoding='utf-8') as modinit:
