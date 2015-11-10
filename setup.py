@@ -10,7 +10,7 @@ from io import open
 
 
 PROJECT_MODULE = 'dragonite'
-PROJECT = 'dragoncon-bot'
+PROJECT = 'dragonite'
 AUTHOR = 'Bryce Eggleton'
 EMAIL = 'eggleton.bryce@gmail.com'
 DESC = 'Python utilities and tools'
@@ -46,13 +46,10 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 3.5',
 ]
 
-initfile = '{0}/__init__.py'.format(PROJECT_MODULE)
-with open(initfile, 'r', encoding='utf-8') as modinit:
-    findver = re.compile(r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']', re.M)
-    try:
-        VERSION = findver.search(modinit.read()).group(1)
-    except AttributeError:
-        VERSION = '0.1.0'
+version_file = '{0}/__version__.py'.format(PROJECT_MODULE)
+with open(version_file, 'r', encoding='utf-8') as fver:
+    re_ver = r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']$'
+    VERSION = re.search(re_ver, fver.read(), re.MULTILINE).group(1)
 
 with open('README.md', 'r', encoding='utf-8') as f:
     LONG_DESC = f.read()
