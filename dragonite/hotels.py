@@ -62,6 +62,7 @@ class ConHostHotels(object):
                     checks[0].value['time'],
                     round(timeit.default_timer() - previous, 4)))
                 previous = timeit.default_timer()
+                log.error(checks[0].value)
             except:
                 raise
         return '{0}'.format(friendly)
@@ -71,6 +72,10 @@ class ConHostHotels(object):
         # a large timeout is required because their redirects take a very
         # long time to process and actually return a response
         rtimeout = 20
+        availability = {
+            'status': None,
+            'errors': [],
+        }
         hyatturl = 'https://atlantaregency.hyatt.com'
         baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
         searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
@@ -121,8 +126,12 @@ class ConHostHotels(object):
                     raise ValueError('invalid detection of availability!')
                 log.info('[hyatt:rooms] AVAILABLE')
         except requests.exceptions.ReadTimeout:
+            availability['errors'].append('TIMEOUT')
             log.error('[hyatt:rooms] TIMEOUT')
-        return {'stuff': 'things'}
+        except requests.exceptions.ConnectionError:
+            availability['errors'].append('CONNECTION ERROR')
+            log.error('[hyatt:rooms] CONNECTION ERROR')
+        return availability
 
     @timed_function
     def hilton_room_availability(self, log, start, end, numppl=4):

@@ -6,6 +6,7 @@ from __future__ import division, print_function
 import gevent.monkey
 import gevent
 import logging
+import requests
 
 from armory.environ import Environment
 
@@ -70,4 +71,6 @@ class DragonConBot(object):
             gevent.wait(tasks)
         except KeyboardInterrupt:
             gevent.killall(tasks)
+        except requests.exceptions.ConnectionError as e:
+            log.error('connection issues!\n{0}'.format(e))
         log.info('dragoncon bot exiting\n')
