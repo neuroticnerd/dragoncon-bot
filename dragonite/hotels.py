@@ -15,6 +15,14 @@ from fuzzywuzzy import fuzz
 from .utils import get_stream_logger, timed_function
 
 
+class AvailabilityResults(object):
+    def __init__(self):
+        self.status = 'failed'
+        self.errors = []
+        self.results = None
+        self.available = False
+
+
 class ConHostHotels(object):
     def __init__(self, start, end, interval=1):
         self._log = get_stream_logger(__name__)
@@ -72,10 +80,7 @@ class ConHostHotels(object):
         # a large timeout is required because their redirects take a very
         # long time to process and actually return a response
         rtimeout = 20
-        availability = {
-            'status': None,
-            'errors': [],
-        }
+        availability = AvailabilityResults()
         hyatturl = 'https://atlantaregency.hyatt.com'
         baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
         searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
@@ -126,16 +131,20 @@ class ConHostHotels(object):
                     raise ValueError('invalid detection of availability!')
                 log.info('[hyatt:rooms] AVAILABLE')
         except requests.exceptions.ReadTimeout:
-            availability['errors'].append('TIMEOUT')
+            availability.errors.append('TIMEOUT')
             log.error('[hyatt:rooms] TIMEOUT')
+            return availability
         except requests.exceptions.ConnectionError:
-            availability['errors'].append('CONNECTION ERROR')
+            availability.errors.append('CONNECTION ERROR')
             log.error('[hyatt:rooms] CONNECTION ERROR')
+            return availability
+        availability.status = 'success'
         return availability
 
     @timed_function
     def hilton_room_availability(self, log, start, end, numppl=4):
         rtimeout = 10
+        availability = AvailabilityResults()
         baseurl = 'http://www3.hilton.com'
         home = '{0}/en/hotels/georgia/hilton-atlanta-ATLAHHH/index.html'
         home = home.format(baseurl)
@@ -200,12 +209,20 @@ class ConHostHotels(object):
                 if ratio > 75:
                     log.info(error)
         except requests.exceptions.ReadTimeout:
+            availability.errors.append('TIMEOUT')
             log.error('[hilton:rooms] TIMEOUT')
-        return {'stuff': 'things'}
+            return availability
+        except requests.exceptions.ConnectionError:
+            availability.errors.append('CONNECTION ERROR')
+            log.error('[hilton:rooms] CONNECTION ERROR')
+            return availability
+        availability.status = 'success'
+        return availability
 
     @timed_function
     def mariott_room_availability(self, log, start, end, numppl=4):
         rtimeout = 5
+        availability = AvailabilityResults()
         base = 'https://www.marriott.com'
         home = '{0}/hotels/travel/atlmq-atlanta-marriott-marquis/'.format(base)
         search = '{0}/reservation/availabilitySearch.mi'.format(base)
@@ -247,5 +264,12 @@ class ConHostHotels(object):
                     errmsg = 'norooms present but unavailable not found'
                     raise ValueError(errmsg)
         except requests.exceptions.ReadTimeout:
+            availability.errors.append('TIMEOUT')
             log.error('[mariott:rooms] TIMEOUT')
-        return {'stuff': 'things'}
+            return availability
+        except requests.exceptions.ConnectionError:
+            availability.errors.append('CONNECTION ERROR')
+            log.error('[mariott:rooms] CONNECTION ERROR')
+            return availability
+        availability.status = 'success'
+        return availability
