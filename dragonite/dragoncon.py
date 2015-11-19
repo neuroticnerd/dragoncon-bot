@@ -9,12 +9,13 @@ import dateutil.parser
 from bs4 import BeautifulSoup
 from unidecode import unidecode
 
-from .utils import get_stream_logger
-
 
 class DragonCon(object):
-    def __init__(self):
-        self._log = get_stream_logger(__name__)
+    site_url = 'http://www.dragoncon.org/'
+
+    def __init__(self, config):
+        self._config = config
+        self._log = self._config.get_logger(__name__)
         self._site_main = None
         self._start = None
         self._end = None
@@ -64,3 +65,13 @@ class DragonCon(object):
         self._start = self._start.replace(year=self._end.year)
         log.info("start date: {0}".format(self._start))
         log.info("  end date: {0}".format(self._end))
+        if self._config.cache:
+            # do caching things
+            pass
+
+    def __str__(self):
+        return '{0}'.format({
+            'url': self.site_url,
+            'start': self.start,
+            'end': self.end,
+        })
