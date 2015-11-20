@@ -5,7 +5,8 @@ from __future__ import division, print_function
 
 import click
 
-from .bot import DragoniteBot, DragoniteConfig
+from .bot import DragoniteBot
+from .conf import settings
 
 
 @click.group(invoke_without_command=True)
@@ -31,11 +32,14 @@ from .bot import DragoniteBot, DragoniteConfig
 @click.version_option(message='%(prog)s %(version)s')
 @click.pass_context
 def dragonite(context, loglevel, cache, verbose):
-    config = DragoniteConfig(loglevel=loglevel, cache=cache, verbose=verbose)
-    dragoncon_bot = DragoniteBot(config)
+    # CLI options/args override defaults and env vars
+    settings.loglevel = loglevel
+    settings.cache = cache
+    settings.verbose = verbose
+    dragoncon_bot = DragoniteBot()
     context.obj = dragoncon_bot
-    log = config.get_logger(__name__)
-    log.debug(config)
+    log = settings.get_logger(__name__)
+    log.debug(settings)
     log.debug('subcommand=\'{0}\''.format(context.invoked_subcommand))
     if context.invoked_subcommand is None:
         dragoncon_bot.run()

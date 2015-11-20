@@ -8,14 +8,14 @@ import dateutil.parser
 
 from bs4 import BeautifulSoup
 from unidecode import unidecode
+from .conf import settings
 
 
 class DragonCon(object):
     site_url = 'http://www.dragoncon.org/'
 
-    def __init__(self, config):
-        self._config = config
-        self._log = self._config.get_logger(__name__)
+    def __init__(self):
+        self._log = settings.get_logger(__name__)
         self._site_main = None
         self._start = None
         self._end = None
@@ -65,7 +65,7 @@ class DragonCon(object):
         self._start = self._start.replace(year=self._end.year)
         log.info("start date: {0}".format(self._start))
         log.info("  end date: {0}".format(self._end))
-        if self._config.cache:
+        if settings.cache:
             # do caching things
             pass
 

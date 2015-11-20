@@ -13,6 +13,7 @@ from decimal import Decimal
 from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
 from .utils import timed_function
+from .conf import settings
 
 
 class AvailabilityResults(object):
@@ -24,9 +25,8 @@ class AvailabilityResults(object):
 
 
 class ConHostHotels(object):
-    def __init__(self, config, start, end, interval=1):
-        self._config = config
-        self._log = self._config.get_logger(__name__)
+    def __init__(self, start, end, interval=1):
+        self._log = settings.get_logger(__name__)
         self._start = start
         self._end = end
         self.interval = interval
