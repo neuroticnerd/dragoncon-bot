@@ -15,6 +15,7 @@ class DragoniteConfig(object):
         'warn': logging.WARNING,
         'warning': logging.WARNING,
         'error': logging.ERROR,
+        'critical': logging.CRITICAL,
     }
     fmt_long = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
     fmt_short = '%(message)s'
@@ -75,5 +76,22 @@ class DragoniteConfig(object):
             logger.addHandler(handler)
             self._logconf[logname] = False
         return logger
+
+    @property
+    def loglevel(self):
+        if not hasattr(self, '_loglevel'):
+            self._loglevel = self.levels['info']
+        return self._loglevel
+
+    @loglevel.setter
+    def loglevel(self, value):
+        if value not in self.levels.values():
+            try:
+                self._loglevel = self.levels[value]
+            except KeyError:
+                errmsg = '{0} is not a valid logging level!'
+                raise ValueError(errmsg.format(value))
+        else:
+            self._loglevel = value
 
 settings = DragoniteConfig()
