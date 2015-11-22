@@ -7,6 +7,7 @@ import click
 
 from .bot import DragoniteBot
 from .conf import settings
+from .constants import DRAGONITE_ASCII
 
 
 @click.group(invoke_without_command=True)
@@ -41,6 +42,7 @@ def dragonite(context, loglevel, cache, verbose):
     log = settings.get_logger(__name__)
     log.debug(settings)
     log.debug('subcommand=\'{0}\''.format(context.invoked_subcommand))
+    log.info(DRAGONITE_ASCII)
     if context.invoked_subcommand is None:
         dragoncon_bot.run()
 
