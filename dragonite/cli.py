@@ -5,7 +5,7 @@ from __future__ import division, print_function
 
 import click
 
-from .bot import DragoniteBot
+from .dragoncon import DragonConBot
 from .conf import settings
 from .constants import DRAGONITE_ASCII
 
@@ -37,7 +37,7 @@ def dragonite(context, loglevel, cache, verbose):
     settings.loglevel = loglevel
     settings.cache = cache
     settings.verbose = verbose
-    dragoncon_bot = DragoniteBot()
+    dragoncon_bot = DragonConBot()
     context.obj = dragoncon_bot
     log = settings.get_logger(__name__)
     log.debug(settings)
