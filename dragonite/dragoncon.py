@@ -22,15 +22,28 @@ from .conf import settings
 from .utils import timed_function
 
 
-class DragonConBot(object):
+class AvailabilityResults(object):
+    def __init__(self):
+        self.status = 'failed'
+        self.errors = []
+        self.results = None
+        self.available = False
+
+
+class DragonCon(object):
+    site_url = 'http://www.dragoncon.org/'
+
     def __init__(self):
         self._log = settings.get_logger(__name__)
-        self.dragoncon = DragonCon()
+        self._site_main = None
+        self._start = None
+        self._end = None
+        self._dates_selector = '.region-countdown > div > h2'
 
     def run(self):
         log = self._log
         try:
-            dcstr = '{0}'.format(self.dragoncon)
+            dcstr = '{0}'.format(self.event_info())
             log.info(dcstr)
         except KeyboardInterrupt:
             pass
@@ -48,8 +61,8 @@ class DragonConBot(object):
         tasks = []
         try:
             host_hotels = ConHostHotels(
-                self.dragoncon.start,
-                self.dragoncon.end
+                self.start,
+                self.end
             )
             log.debug('spawning host hotel runner')
             tasks.append(gevent.spawn(host_hotels))
@@ -66,17 +79,6 @@ class DragonConBot(object):
     def get_room_availability(self):
         log = self._log
         log.debug('runonce check not implemented')
-
-
-class DragonCon(object):
-    site_url = 'http://www.dragoncon.org/'
-
-    def __init__(self):
-        self._log = settings.get_logger(__name__)
-        self._site_main = None
-        self._start = None
-        self._end = None
-        self._dates_selector = '.region-countdown > div > h2'
 
     @property
     def site_main(self):
@@ -126,21 +128,13 @@ class DragonCon(object):
             # do caching things
             pass
 
-    def __str__(self):
+    def event_info(self):
         info = OrderedDict()
         info['con'] = 'Dragon Con'
         info['url'] = self.site_url
         info['start'] = self.start
         info['end'] = self.end
         return '{0}'.format(jsonify(info))
-
-
-class AvailabilityResults(object):
-    def __init__(self):
-        self.status = 'failed'
-        self.errors = []
-        self.results = None
-        self.available = False
 
 
 class ConHostHotels(object):
