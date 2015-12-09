@@ -136,9 +136,7 @@ class DragonCon(object):
         info['end'] = self.end
         return '{0}'.format(jsonify(info))
 
-
-class ConHostHotels(object):
-    def __init__(self, start, end, interval=1):
+    def host_setup(self, start, end, interval=1):
         self._log = settings.get_logger(__name__)
         self._start = start
         self._end = end
