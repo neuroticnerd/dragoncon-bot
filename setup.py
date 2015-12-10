@@ -30,6 +30,8 @@ REQUIRES = [
 EXTRAS = {
     'dev': [
         'flake8>=2.5.0',
+        'pytest>=2.8.4',
+        'coverage>=4.0.3',
     ],
 }
 SCRIPTS = {
@@ -46,7 +48,7 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 3.5',
 ]
 
-version_file = '{0}/__version__.py'.format(PROJECT_MODULE)
+version_file = '{0}/__init__.py'.format(PROJECT_MODULE)
 with open(version_file, 'r', encoding='utf-8') as fver:
     re_ver = r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']$'
     VERSION = re.search(re_ver, fver.read(), re.MULTILINE).group(1)

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 from __future__ import division, print_function
@@ -7,6 +6,14 @@ import timeit
 
 from decimal import Decimal
 from functools import wraps
+
+
+class AvailabilityResults(object):
+    def __init__(self):
+        self.status = 'failed'
+        self.errors = []
+        self.results = None
+        self.available = False
 
 
 def timed_function(func):
