@@ -12,13 +12,20 @@ from .utils import timed_function, AvailabilityResults
 
 @timed_function
 def hyatt_room_availability(log, start, end, numppl=4):
+    """
+    TODO: hyatt now uses:
+        https://aws.passkey.com/event/14179207/owner/323/rooms/list
+    """
     # a large timeout is required because their redirects take a very
     # long time to process and actually return a response
-    rtimeout = 20
+    rtimeout = 8
     availability = AvailabilityResults()
-    hyatturl = 'https://atlantaregency.hyatt.com'
-    baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
-    searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
+    # hyatturl = 'https://atlantaregency.hyatt.com'
+    hyatturl = 'https://aws.passkey.com/event/14179207/owner/323/home'
+    # baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
+    baseurl = hyatturl
+    # searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
+    searchurl = 'https://aws.passkey.com/event/14179207/owner/323/landing'
     unavailable = (
         'The hotel is not available for'
         ' your requested travel dates.')
@@ -42,6 +49,16 @@ def hyatt_room_availability(log, start, end, numppl=4):
         'rooms': 1,
         'srcd': 'dayprop',
     }
+    datefmt = '{0:%Y}-{0:%m}-{0:%d}'
+    params = {
+        'hotelId': 0,
+        'blockMap.blocks%5B0%5D.blockId': 0,
+        'blockMap.blocks%5B0%5D.checkIn': datefmt.format(start),
+        'blockMap.blocks%5B0%5D.checkOut': datefmt.format(end),
+        'blockMap.blocks%5B0%5D.numberOfGuests': 4,
+        'blockMap.blocks%5B0%5D.numberOfRooms': 1,
+        'blockMap.blocks%5B0%5D.numberOfChildren': 0,
+    }
     try:
         # the requests will redirect a number of times due to how their
         # site processes the search requests
@@ -50,6 +67,9 @@ def hyatt_room_availability(log, start, end, numppl=4):
         r = s.get(searchurl, params=params, timeout=rtimeout)
         log.debug('[hyatt:rooms] [{0}]'.format(r.status_code))
         results = BeautifulSoup(r.text, 'lxml')
+        log.error('{0}'.format(
+            'No lodging matches your search criteria.' in r.text
+        ).upper())
         errors = results.body.select('.error-block #msg .error')
         if errors:
             for err in errors:
