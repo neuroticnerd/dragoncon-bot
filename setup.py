@@ -28,11 +28,15 @@ REQUIRES = [
     'Unidecode>=0.4.18',
 ]
 EXTRAS = {
-    'dev': [
+    'dev': (
         'flake8>=2.5.0',
         'pytest>=2.8.4',
         'coverage>=4.0.3',
-    ],
+    ),
+    'caching': (
+        'redis>=2.10.3',
+        'hiredis>=0.2.0',
+    ),
 }
 SCRIPTS = {
     "console_scripts": [
