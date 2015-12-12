@@ -16,59 +16,36 @@ def hyatt_room_availability(log, start, end, numppl=4):
     TODO: hyatt now uses:
         https://aws.passkey.com/event/14179207/owner/323/rooms/list
     """
-    # a large timeout is required because their redirects take a very
-    # long time to process and actually return a response
-    rtimeout = 8
     availability = AvailabilityResults()
-    # hyatturl = 'https://atlantaregency.hyatt.com'
-    hyatturl = 'https://aws.passkey.com/event/14179207/owner/323/home'
-    # baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
-    baseurl = hyatturl
-    # searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
-    searchurl = 'https://aws.passkey.com/event/14179207/owner/323/landing'
-    unavailable = (
-        'The hotel is not available for'
-        ' your requested travel dates.')
-    params = {
-        'Lang': 'en',
-        'accessibilityCheck': 'false',
-        'adults': numppl,
-        'childAge1': -1,
-        'childAge2': -1,
-        'childAge3': -1,
-        'childAge4': -1,
-        'corp_id': '',
-        'day1': start.day,
-        'day2': end.day,
-        'kids': 0,
-        'monthyear1': '{0:%-m} {0:%y}'.format(start),
-        'monthyear2': '{0:%-m} {0:%y}'.format(end),
-        'offercode': '',
-        'pid': 'atlra',
-        'rateType': 'Standard',
-        'rooms': 1,
-        'srcd': 'dayprop',
-    }
+    rtimeout = 8
     datefmt = '{0:%Y}-{0:%m}-{0:%d}'
-    params = {
+    start = datefmt.format(start)
+    end = datefmt.format(end)
+    hyatturl = 'https://aws.passkey.com/event/14179207/owner/323'
+    baseurl = '{0}/home'.format(hyatturl)
+    landingurl = '{0}/landing'.format(hyatturl)
+    searchurl = '{0}/rooms/select'.format(hyatturl)
+    payload = {
         'hotelId': 0,
-        'blockMap.blocks%5B0%5D.blockId': 0,
-        'blockMap.blocks%5B0%5D.checkIn': datefmt.format(start),
-        'blockMap.blocks%5B0%5D.checkOut': datefmt.format(end),
-        'blockMap.blocks%5B0%5D.numberOfGuests': 4,
-        'blockMap.blocks%5B0%5D.numberOfRooms': 1,
-        'blockMap.blocks%5B0%5D.numberOfChildren': 0,
+        'blockMap.blocks{0}5B0{0}5D.blockId'.format('%'): 0,
+        'blockMap.blocks{0}5B0{0}5D.checkIn'.format('%'): start,
+        'blockMap.blocks{0}5B0{0}5D.checkOut'.format('%'): end,
+        'blockMap.blocks{0}5B0{0}5D.numberOfGuests'.format('%'): 4,
+        'blockMap.blocks{0}5B0{0}5D.numberOfRooms'.format('%'): 1,
+        'blockMap.blocks{0}5B0{0}5D.numberOfChildren'.format('%'): 0,
     }
+    unavailable = 'No lodging matches your search criteria.'
+
     try:
-        # the requests will redirect a number of times due to how their
-        # site processes the search requests
         s = requests.session()
         r = s.get(baseurl, timeout=rtimeout)
-        r = s.get(searchurl, params=params, timeout=rtimeout)
+        r = s.get(landingurl, timeout=rtimeout)
+        r = s.post(searchurl, data=payload, timeout=rtimeout)
+
         log.debug('[hyatt:rooms] [{0}]'.format(r.status_code))
         results = BeautifulSoup(r.text, 'lxml')
         log.error('{0}'.format(
-            'No lodging matches your search criteria.' in r.text
+            unavailable in r.text
         ).upper())
         errors = results.body.select('.error-block #msg .error')
         if errors:
