@@ -12,6 +12,77 @@ from .utils import timed_function, AvailabilityResults
 
 @timed_function
 def hyatt_room_availability(log, start, end, numppl=4):
+    # a large timeout is required because their redirects take a very
+    # long time to process and actually return a response
+    rtimeout = 8
+    availability = AvailabilityResults()
+    hyatturl = 'https://atlantaregency.hyatt.com'
+    baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
+    searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
+    unavailable = (
+        'The hotel is not available for'
+        ' your requested travel dates.')
+    datefmt = '{0:%-m} {0:%y}'
+    params = {
+        'Lang': 'en',
+        'accessibilityCheck': 'false',
+        'adults': numppl,
+        'childAge1': -1,
+        'childAge2': -1,
+        'childAge3': -1,
+        'childAge4': -1,
+        'corp_id': '',
+        'day1': start.day,
+        'day2': end.day,
+        'kids': 0,
+        'monthyear1': datefmt.format(start),
+        'monthyear2': datefmt.format(end),
+        'offercode': '',
+        'pid': 'atlra',
+        'rateType': 'Standard',
+        'rooms': 1,
+        'srcd': 'dayprop',
+    }
+    try:
+        # the requests will redirect a number of times due to how their
+        # site processes the search requests
+        s = requests.session()
+        r = s.get(baseurl, timeout=rtimeout)
+        r = s.get(searchurl, params=params, timeout=rtimeout)
+        log.debug('[hyatt:rooms] [{0}]'.format(r.status_code))
+        results = BeautifulSoup(r.text, 'lxml')
+        log.error('{0}'.format(
+            'No lodging matches your search criteria.' in r.text
+        ).upper())
+        errors = results.body.select('.error-block #msg .error')
+        if errors:
+            for err in errors:
+                errtext = [
+                    t.strip() for t in err.findAll(
+                        text=True, recursive=False)
+                    if t.strip() != '']
+                nothere = '<unavailable>'
+                errtext = errtext[0] if len(errtext) > 0 else nothere
+                log.debug('ERROR: {0}'.format(errtext))
+            log.info('[hyatt:rooms] UNAVAILABLE')
+        else:
+            if unavailable in r.text:
+                raise ValueError('invalid detection of availability!')
+            log.info('[hyatt:rooms] AVAILABLE')
+    except requests.exceptions.ReadTimeout:
+        availability.errors.append('TIMEOUT')
+        log.error('[hyatt:rooms] TIMEOUT')
+        return availability
+    except requests.exceptions.ConnectionError:
+        availability.errors.append('CONNECTION ERROR')
+        log.error('[hyatt:rooms] CONNECTION ERROR')
+        return availability
+    availability.status = 'success'
+    return availability
+
+
+@timed_function
+def hyatt_passkey_rooms(log, start, end, numppl=4):
     """
     TODO: hyatt now uses:
         https://aws.passkey.com/event/14179207/owner/323/rooms/list

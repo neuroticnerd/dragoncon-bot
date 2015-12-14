@@ -4,7 +4,6 @@ from __future__ import absolute_import, unicode_literals
 from __future__ import division, print_function
 
 import click
-import gevent
 
 from .dragoncon import DragonCon
 from .conf import settings
@@ -35,9 +34,8 @@ from .constants import DRAGONITE_ASCII
 @click.pass_context
 def dragonite(context, loglevel, cache, verbose):
     # CLI options/args override defaults and env vars
-    gevent.monkey.patch_all()
     settings.loglevel = loglevel
-    settings.cache = cache
+    settings.use_cache = cache
     settings.verbose = verbose
     dragoncon_bot = DragonCon()
     context.obj = dragoncon_bot

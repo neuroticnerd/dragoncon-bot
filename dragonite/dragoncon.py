@@ -23,11 +23,6 @@ class DragonCon(object):
         self.dates_selector = '.region-countdown > div > h2'
         self.interval = interval
 
-    def __call__(self):
-        log = self._log
-        hotels = [coroutines.monitor_room_availability()]
-        log.info([h.value for h in hotels])
-
     @property
     def site_content(self):
         if self._site_main is None:
@@ -56,39 +51,14 @@ class DragonCon(object):
         info['end'] = self.end
         return '{0}'.format(jsonify(info))
 
-    def run(self):
-        log = self._log
-        try:
-            dcstr = '{0}'.format(self.event_info())
-            log.info(dcstr)
-        except KeyboardInterrupt:
-            pass
-        except requests.exceptions.ConnectionError as e:
-            log.debug('{0}'.format(e))
-            log.error('connection error! now aborting!')
-        log.info('dragoncon bot exiting\n')
-
-    def hotel_availability(self):
-        log = self._log
-        for w in settings._warnings:
-            log.info(w)
-        log.info('gevent monkey patching done')
-        tasks = []
-        try:
-            log.debug('spawning host hotel runner')
-            tasks.append(gevent.spawn(self))
-            log.debug('waiting for tasks to complete')
-            gevent.wait(tasks)
-        except KeyboardInterrupt:
-            gevent.killall(tasks)
-        except requests.exceptions.ConnectionError as e:
-            log.debug('{0}'.format(e))
-            log.error('connection error! now aborting!')
-            gevent.killall(tasks)
-        log.info('dragoncon bot exiting\n')
-
     def event_dates(self):
         log = self._log
+        try:
+            self._start = settings.cache['event_start']
+            self._end = settings.cache['event_end']
+            return
+        except KeyError:
+            log.error(settings.cache._data)
         domdate = self.site_content.body.select(self.dates_selector)
         domlen = len(domdate)
         if domlen != 1:
@@ -109,6 +79,34 @@ class DragonCon(object):
         self._start = self._start.replace(year=self._end.year)
         log.info("start date: {0}".format(self._start))
         log.info("  end date: {0}".format(self._end))
-        if settings.cache:
-            # do caching things
-            pass
+        settings.cache['event_start'] = self.start
+        settings.cache['event_end'] = self.end
+        settings.cache.flush()
+
+    def __call__(self, runme=True):
+        return self.run(info_only=(not runme))
+
+    def run(self, info_only=False):
+        log = self._log
+        for w in settings._warnings:
+            log.warning(w)
+        coroutines.monkey_patch()
+        log.info('gevent monkey patching done')
+        try:
+            log.debug('fetching event info...')
+            dcstr = '{0}'.format(self.event_info)
+            log.info(dcstr)
+            if info_only:
+                log.debug('info only; terminating')
+                return True
+            log.debug('spawning tasks...')
+            hotels = coroutines.monitor_room_availability(self.start, self.end)
+            log.info([h.value for h in hotels])
+            # gevent.wait(tasks)
+        except KeyboardInterrupt:
+            coroutines.killalltasks()
+        except requests.exceptions.ConnectionError as e:
+            coroutines.killalltasks()
+            log.debug('{0}'.format(e))
+            log.error('connection error! now aborting!')
+        log.info('dragoncon bot exiting\n')
