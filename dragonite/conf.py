@@ -4,9 +4,17 @@ from __future__ import division, print_function
 
 import logging
 import io
+import sys
 
+from dateutil.parser import parse
 from armory.environ import Environment
 from armory.serialize import jsonify, jsonexpand
+
+if (sys.version_info > (3, 0)):
+    # FileNotFoundError is built-in in Python 3
+    pass
+else:
+    FileNotFoundError = (IOError, OSError)
 
 
 class DragoniteCache(object):
@@ -17,7 +25,11 @@ class DragoniteCache(object):
         try:
             with io.open(self.cachefile, 'r', encoding='utf-8') as cf:
                 self._data.update(jsonexpand(cf.read()))
-        except FileNotFoundError:  # NOQA
+            if 'event_start' in self._data:
+                self._data['event_start'] = parse(self._data['event_start'])
+            if 'event_end' in self._data:
+                self._data['event_end'] = parse(self._data['event_end'])
+        except FileNotFoundError:
             pass
 
     def __getitem__(self, item):
@@ -90,7 +102,7 @@ class DragoniteConfig(object):
     def __str__(self):
         return '{0}'.format({
             'loglevel': self.loglevelname,
-            'cache': self.cache,
+            'cache': self.use_cache,
         })
 
     def get_logger(self, logname, loglevel=None):
