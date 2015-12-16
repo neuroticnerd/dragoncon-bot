@@ -58,7 +58,7 @@ class DragonCon(object):
             self._end = settings.cache['event_end']
             return
         except KeyError:
-            log.error(settings.cache._data)
+            log.debug('retrieving event dates...')
         domdate = self.site_content.body.select(self.dates_selector)
         domlen = len(domdate)
         if domlen != 1:

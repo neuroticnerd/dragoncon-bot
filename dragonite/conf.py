@@ -45,7 +45,7 @@ class DragoniteCache(object):
         if not self._tofile:
             return
         with io.open(self.cachefile, 'w', encoding='utf-8') as cf:
-            cf.write(jsonify(self._data))
+            cf.write(jsonify(self._data, True))
 
 
 class DragoniteConfig(object):
@@ -87,22 +87,27 @@ class DragoniteConfig(object):
 
         self.loglevelname = logging.getLevelName(self.loglevel)
 
+        self.verbose = bool(options.get('verbose', False))
+
         cc = options.get('cache', None)
         if cc is None:
             self.use_cache = False
         else:
             self.use_cache = bool(cc)
 
-        self.cache = DragoniteCache(tofile=self.use_cache)
-
-        self.verbose = bool(options.get('verbose', False))
 
         self.interval = 1
+
+    @property
+    def cache(self):
+        if not hasattr(self, '_cache'):
+            self._cache = DragoniteCache(tofile=self.use_cache)
+        return self._cache
 
     def __str__(self):
         return '{0}'.format({
             'loglevel': self.loglevelname,
-            'cache': self.use_cache,
+            'use_cache': self.use_cache,
         })
 
     def get_logger(self, logname, loglevel=None):
