@@ -19,7 +19,7 @@ from .constants import DRAGONITE_ASCII
 )
 @click.option(
     '-c', '--cache', 'cache',
-    is_flag=True, default=True,
+    is_flag=True, default=False,
     help=(
         'Accepts "[Tt]rue", "[Ff]alse", "yes", "no", '
         'and 0/1 to enable/disable caching.'
