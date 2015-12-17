@@ -31,6 +31,15 @@ latest_results = {
 }
 
 
+class SearchResponse(object):
+    def __init__(self, response):
+        self._response = response
+
+    @property
+    def r(self):
+        return self._response
+
+
 def killalltasks():
     raise NotImplementedError()
 
