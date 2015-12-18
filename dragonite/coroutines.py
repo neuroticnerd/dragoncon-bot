@@ -21,23 +21,14 @@ response_map = {
     'hilton': 'parse_hilton_response',
 }
 scrapers = {
-    'hyatt': 'hyatt_room_availability',
-    'hyatt.passkey': 'hyatt_passkey_rooms',
-    'hilton': 'hilton_room_availability',
-    'mariott': 'mariott_room_availability',
+    'hyatt': 'hyatt',
+    'hyatt.passkey': 'hyatt_passkey',
+    'hilton': 'hilton',
+    'mariott': 'mariott',
 }
 latest_results = {
     key: None for key in scrapers.keys()
 }
-
-
-class SearchResponse(object):
-    def __init__(self, response):
-        self._response = response
-
-    @property
-    def r(self):
-        return self._response
 
 
 def killalltasks():
@@ -55,7 +46,7 @@ def response_processor():
     response_map[origin](r['data'])
 
 
-def _monitor_rooms(friendly, availability_func, start, end):
+def _monitor_rooms(friendly, availability_func, obj):
     log = settings.get_logger(__name__)
     log.info('monitoring {0} room availability'.format(friendly))
     previous = timeit.default_timer()
@@ -63,8 +54,7 @@ def _monitor_rooms(friendly, availability_func, start, end):
         try:
             checks = []
             checks.append(gevent.spawn(
-                availability_func, log,
-                start, end))
+                availability_func, obj))
             gevent.wait(checks)
             elapsed = round(Decimal(timeit.default_timer() - previous), 4)
             sleeptime = settings.interval - max(0.1, elapsed)
@@ -83,11 +73,13 @@ def _monitor_rooms(friendly, availability_func, start, end):
 
 def monitor_room_availability(start, end):
     log = settings.get_logger(__name__)
+    availability = []
+    runner = scraping.RoomAvailability(start, end)
     try:
         log.debug('spawning room availability monitors')
         availability = [
             gevent.spawn(
-                _monitor_rooms, name, getattr(scraping, func), start, end
+                _monitor_rooms, name, getattr(runner, func), runner
             ) for name, func in scrapers.items()
         ]
         log.debug('waiting for room availability monitoring to complete')
@@ -95,4 +87,5 @@ def monitor_room_availability(start, end):
     except Exception as e:
         log.error(e)
         gevent.killall(availability)
+        raise
     return availability
