@@ -19,14 +19,14 @@ class SearchResponse(object):
         return self._response
 
 
-class RoomAvailability(object):
+class HyattAvailability(object):
     def __init__(self, start, end, numppl=4):
         self.start = start
         self.end = end
         self.numppl = numppl
 
     @timed_function
-    def hyatt(self):
+    def run(self):
         # a large timeout is required because their redirects take a very
         # long time to process and actually return a response
         rtimeout = 8
@@ -95,8 +95,15 @@ class RoomAvailability(object):
         availability.status = 'success'
         return availability
 
+
+class HyattPasskeyAvailability(object):
+    def __init__(self, start, end, numppl=4):
+        self.start = start
+        self.end = end
+        self.numppl = numppl
+
     @timed_function
-    def hyatt_passkey(self):
+    def run(self):
         """
         TODO: hyatt now uses:
             https://aws.passkey.com/event/14179207/owner/323/rooms/list
@@ -158,8 +165,15 @@ class RoomAvailability(object):
         availability.status = 'success'
         return availability
 
+
+class HiltonAvailability(object):
+    def __init__(self, start, end, numppl=4):
+        self.start = start
+        self.end = end
+        self.numppl = numppl
+
     @timed_function
-    def hilton(self):
+    def run(self):
         rtimeout = 10
         availability = AvailabilityResults()
         baseurl = 'http://www3.hilton.com'
@@ -236,8 +250,15 @@ class RoomAvailability(object):
         availability.status = 'success'
         return availability
 
+
+class MariottAvailability(object):
+    def __init__(self, start, end, numppl=4):
+        self.start = start
+        self.end = end
+        self.numppl = numppl
+
     @timed_function
-    def mariott(self):
+    def run(self):
         rtimeout = 5
         availability = AvailabilityResults()
         base = 'https://www.marriott.com'
