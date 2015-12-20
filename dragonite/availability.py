@@ -7,26 +7,28 @@ import requests
 from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
 
-from .utils import timed_function, AvailabilityResults
+from .utils import timed_function, AvailabilityResults, SearchResponse
 
 
-class SearchResponse(object):
-    def __init__(self, response):
-        self._response = response
-
-    @property
-    def r(self):
-        return self._response
-
-
-class HyattAvailability(object):
+class HostHotelAvailability(object):
     def __init__(self, start, end, numppl=4):
         self.start = start
         self.end = end
         self.numppl = numppl
 
+    def __call__(self, method, *args, **kwargs):
+        return getattr(self, method)(*args, **kwargs)
+
+    def scrape(self):
+        raise NotImplementedError('must implement scrape method')
+
+    def parse(self):
+        raise NotImplementedError('must implement parse method')
+
+
+class HyattAvailability(HostHotelAvailability):
     @timed_function
-    def run(self):
+    def scrape(self):
         # a large timeout is required because their redirects take a very
         # long time to process and actually return a response
         rtimeout = 8
@@ -96,14 +98,9 @@ class HyattAvailability(object):
         return availability
 
 
-class HyattPasskeyAvailability(object):
-    def __init__(self, start, end, numppl=4):
-        self.start = start
-        self.end = end
-        self.numppl = numppl
-
+class HyattPasskeyAvailability(HostHotelAvailability):
     @timed_function
-    def run(self):
+    def scrape(self):
         """
         TODO: hyatt now uses:
             https://aws.passkey.com/event/14179207/owner/323/rooms/list
@@ -166,14 +163,9 @@ class HyattPasskeyAvailability(object):
         return availability
 
 
-class HiltonAvailability(object):
-    def __init__(self, start, end, numppl=4):
-        self.start = start
-        self.end = end
-        self.numppl = numppl
-
+class HiltonAvailability(HostHotelAvailability):
     @timed_function
-    def run(self):
+    def scrape(self):
         rtimeout = 10
         availability = AvailabilityResults()
         baseurl = 'http://www3.hilton.com'
@@ -251,14 +243,9 @@ class HiltonAvailability(object):
         return availability
 
 
-class MariottAvailability(object):
-    def __init__(self, start, end, numppl=4):
-        self.start = start
-        self.end = end
-        self.numppl = numppl
-
+class MariottAvailability(HostHotelAvailability):
     @timed_function
-    def run(self):
+    def scrape(self):
         rtimeout = 5
         availability = AvailabilityResults()
         base = 'https://www.marriott.com'
