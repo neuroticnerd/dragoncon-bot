@@ -4,72 +4,94 @@ from __future__ import division, print_function
 
 import timeit
 import gevent.monkey
-import gevent.queue
-import gevent.pool
 import gevent
 
+from gevent.pool import Group, Pool
+from gevent.queue import Queue
 from decimal import Decimal
+from armory.gevent import patch_gevent_hub
 from dragonite import availability
 from dragonite.conf import settings
 
 
-response_queue = gevent.queue.Queue()
-scrapers = {
-    'hyatt': availability.HyattAvailability,
-    'hyatt_passkey': availability.HyattPasskeyAvailability,
-    'hilton': availability.HiltonAvailability,
-    'mariott': availability.MariottAvailability,
-}
-latest_results = {
-    key: None for key in scrapers.keys()
-}
+pool_size = 5
+processors = Pool(pool_size)
+result_queue = Queue()
+action_queue = Queue()
 
 
-def killalltasks():
-    raise NotImplementedError()
+class CrawlerGroup(Group):
+    def alive(self):
+        for greenlet in self.greenlets:
+            if not greenlet.ready():
+                return True
+        return False
 
 
-def monkey_patch():
-    gevent.monkey.patch_all()
-    return True
-
-
-def _monitor_rooms(friendly, availability_func, obj):
+def _monitor_rooms(scraper):
     log = settings.get_logger(__name__)
-    log.info('monitoring {0} room availability'.format(friendly))
+    log.info('monitoring {0} room availability...'.format(scraper.friendly))
+    max_attempts = settings.max_attempts
+    iteration = 0
     previous = timeit.default_timer()
-    while True:
+    while max_attempts == 0 or iteration < max_attempts:
         try:
-            checks = []
-            checks.append(gevent.spawn(
-                availability_func, obj))
-            gevent.wait(checks)
+            scrape = [gevent.spawn(scraper)]
+            gevent.wait(scrape)
             elapsed = round(Decimal(timeit.default_timer() - previous), 4)
+            result_queue.put(scrape[0].value)
             sleeptime = settings.interval - max(0.1, elapsed)
             gevent.sleep(sleeptime)
-            log.debug(checks[0].value)
             previous = timeit.default_timer()
-            log.error(checks[0].value)
-            response_queue.push(checks[0].value)
         except:
             raise
-    return '{0}'.format(friendly)
+        iteration += 1
+    return '{0}'.format(scraper.name)
+
+
+def _scrape_processor():
+    log = settings.get_logger(__name__)
+    result = result_queue.get()
+    log.debug('_scrape_processor: {0}'.format(result))
+    result.evaluate()
+    if result.available:
+        action_queue.put(result)
+        return True
+    return False
+
+
+def _manage_worker_pool(crawlers):
+    while crawlers.alive():
+        # keep the worker pool filled
+        for x in range(0, min(result_queue.qsize(), processors.free_count())):
+            processors.spawn(_scrape_processor)
+        # ensure context switches can happen
+        gevent.sleep(0.1)
 
 
 def monitor_room_availability(start, end):
     log = settings.get_logger(__name__)
-    hotels = []
-    try:
-        log.debug('spawning room availability monitors')
-        hotels = [
-            gevent.spawn(
-                _monitor_rooms, name, callable_object
-            ) for name, callable_object in scrapers.items()
-        ]
-        log.debug('waiting for room availability monitoring to complete')
-        gevent.wait(hotels)
-    except Exception as e:
-        log.error(e)
-        gevent.killall(hotels)
-        raise
-    return hotels
+    log.debug('spawning room availability monitors')
+    hotel_scrapers = availability.get_scrapers(start, end)
+    crawlers = CrawlerGroup()
+    for scraper in hotel_scrapers:
+        crawlers.spawn(_monitor_rooms, scraper)
+    manager = gevent.spawn(_manage_worker_pool, crawlers)
+    crawlers.join()
+    if not result_queue.empty():
+        processors.join(timeout=10)
+        processors.kill()
+    if not manager.ready():
+        manager.kill()
+    return crawlers
+
+
+def monkey_patch():
+    patch_gevent_hub()
+    gevent.monkey.patch_all()
+    return True
+
+
+def killalltasks():
+    # raise NotImplementedError()
+    pass
