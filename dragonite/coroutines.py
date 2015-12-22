@@ -48,12 +48,9 @@ def _monitor_rooms(friendly, availability_func, obj):
             sleeptime = settings.interval - max(0.1, elapsed)
             gevent.sleep(sleeptime)
             log.debug(checks[0].value)
-            # log.debug('func({0}), loop({1})'.format(
-            #     checks[0].value['time'],
-            #     round(timeit.default_timer() - previous, 4))
-            # )
             previous = timeit.default_timer()
             log.error(checks[0].value)
+            response_queue.push(checks[0].value)
         except:
             raise
     return '{0}'.format(friendly)
@@ -66,8 +63,8 @@ def monitor_room_availability(start, end):
         log.debug('spawning room availability monitors')
         hotels = [
             gevent.spawn(
-                _monitor_rooms, name, func
-            ) for name, func in scrapers.items()
+                _monitor_rooms, name, callable_object
+            ) for name, callable_object in scrapers.items()
         ]
         log.debug('waiting for room availability monitoring to complete')
         gevent.wait(hotels)
