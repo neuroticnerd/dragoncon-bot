@@ -85,8 +85,6 @@ class DragoniteConfig(object):
                 self._warnings.append(errmsg.format(ll))
                 self.loglevel = logging.INFO
 
-        self.loglevelname = logging.getLevelName(self.loglevel)
-
         self.verbose = bool(options.get('verbose', False))
 
         cc = options.get('cache', None)
@@ -94,7 +92,6 @@ class DragoniteConfig(object):
             self.use_cache = False
         else:
             self.use_cache = bool(cc)
-
 
         self.interval = 1
 
@@ -142,5 +139,10 @@ class DragoniteConfig(object):
                 raise ValueError(errmsg.format(value))
         else:
             self._loglevel = value
+
+    @property
+    def loglevelname(self):
+        return logging.getLevelName(self.loglevel)
+
 
 settings = DragoniteConfig()

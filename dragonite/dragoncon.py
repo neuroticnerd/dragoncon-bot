@@ -105,8 +105,9 @@ class DragonCon(object):
             # gevent.wait(tasks)
         except KeyboardInterrupt:
             coroutines.killalltasks()
+            log.error('termination requested via KeyboardInterrupt')
         except requests.exceptions.ConnectionError as e:
             coroutines.killalltasks()
             log.debug('{0}'.format(e))
-            log.error('connection error! now aborting!')
+            log.error('internet connection error! now aborting!')
         log.info('dragoncon bot exiting\n')
