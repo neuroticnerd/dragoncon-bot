@@ -8,24 +8,6 @@ from decimal import Decimal
 from functools import wraps
 
 
-class SearchResponse(object):
-    def __init__(self, response):
-        self._response = response
-
-    @property
-    def r(self):
-        return self._response
-
-
-class AvailabilityResults(object):
-    def __init__(self, results=None, elapsed=None):
-        self.status = 'failed'
-        self.errors = []
-        self.results = None
-        self.available = False
-        self.elapsed = elapsed
-
-
 def timed_function(func):
     @wraps(func)
     def timed_function_wrapper(*args, **kwargs):

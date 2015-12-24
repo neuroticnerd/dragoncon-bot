@@ -30,13 +30,20 @@ from .constants import DRAGONITE_ASCII
     is_flag=True, default=False,
     help='Causes log messages to include date, time, and module information.'
 )
+@click.option(
+    '--max-tries', 'max_attempts',
+    type=int,
+    help='Set the max number of tries to find room availability.'
+)
 @click.version_option(message='%(prog)s %(version)s')
 @click.pass_context
-def dragonite(context, loglevel, cache, verbose):
+def dragonite(context, loglevel, cache, verbose, max_attempts):
     # CLI options/args override defaults and env vars
     settings.loglevel = loglevel
     settings.use_cache = cache
     settings.verbose = verbose
+    if max_attempts is not None:
+        settings.max_attempts = max_attempts
     dragoncon_bot = DragonCon()
     context.obj = dragoncon_bot
     log = settings.get_logger(__name__)

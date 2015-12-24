@@ -94,6 +94,7 @@ class DragoniteConfig(object):
             self.use_cache = bool(cc)
 
         self.interval = 1
+        self.max_attempts = options.get('max_attempts', 0)
 
     @property
     def cache(self):

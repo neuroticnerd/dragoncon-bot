@@ -101,11 +101,11 @@ class DragonCon(object):
                 return True
             log.debug('spawning tasks...')
             hotels = coroutines.monitor_room_availability(self.start, self.end)
-            log.info([h.value for h in hotels])
+            # log.info([h.value for h in hotels])
             # gevent.wait(tasks)
         except KeyboardInterrupt:
             coroutines.killalltasks()
-            log.error('termination requested via KeyboardInterrupt')
+            log.error('terminating program due to KeyboardInterrupt')
         except requests.exceptions.ConnectionError as e:
             coroutines.killalltasks()
             log.debug('{0}'.format(e))
