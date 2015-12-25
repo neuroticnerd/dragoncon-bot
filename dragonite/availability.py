@@ -7,38 +7,99 @@ import requests
 from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
 
-from .utils import timed_function, AvailabilityResults, SearchResponse
+from .conf import settings
+
+
+def get_scrapers(start, end):
+    """ should this be done in the coroutines? """
+    return (
+        HyattAvailability(start, end),
+        HyattPasskeyAvailability(start, end),
+        HiltonAvailability(start, end),
+        MariottAvailability(start, end),
+    )
+
+
+class ScrapeResults(object):
+    def __init__(self, parent):
+        self._parent = parent
+        self._raw = None
+        self._dom = None
+        self._session = None
+        self._response = None
+        self.available = False
+        self.unavailable = False
+        self.post_process = False
+        self.error = False
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def raw(self):
+        return self._raw
+
+    @property
+    def dom(self):
+        return self._dom
+
+    @property
+    def session(self):
+        return self._session
+
+    @property
+    def response(self):
+        return self._response
+
+    def evaluate(self):
+        self.parent.parse(self)
 
 
 class HostHotelAvailability(object):
+    msgfmt = '{name}:rooms  {msg}'
+
     def __init__(self, start, end, numppl=4):
+        self.log = settings.get_logger(__name__)
         self.start = start
         self.end = end
         self.numppl = numppl
 
-    def __call__(self, method, *args, **kwargs):
-        return getattr(self, method)(*args, **kwargs)
+    def __call__(self, *args, **kwargs):
+        """ convenience method of triggering a scrape """
+        return self.scrape(result=ScrapeResults(self))
 
-    def scrape(self):
+    @property
+    def name(self):
+        raise NotImplementedError('must have name attribute')
+
+    @property
+    def friendly(self):
+        raise NotImplementedError('must have friendly attribute')
+
+    def scrape(self, result, **kwargs):
+        """ expected to return a ScrapeResults object """
         raise NotImplementedError('must implement scrape method')
 
-    def parse(self):
+    def parse(self, result, **kwargs):
         raise NotImplementedError('must implement parse method')
+
+    def msg(self, message):
+        return self.msgfmt.format(name=self.name, msg=message)
 
 
 class HyattAvailability(HostHotelAvailability):
-    @timed_function
-    def scrape(self):
+    name = 'hyatt'
+    friendly = 'Hyatt'
+
+    def scrape(self, result, *args, **kwargs):
+        log = self.log
         # a large timeout is required because their redirects take a very
         # long time to process and actually return a response
-        rtimeout = 8
-        availability = AvailabilityResults()
+        rtimeout = kwargs.get('timeout', 8)
         hyatturl = 'https://atlantaregency.hyatt.com'
         baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
         searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
-        unavailable = (
-            'The hotel is not available for'
-            ' your requested travel dates.')
         datefmt = '{0:%-m} {0:%y}'
         params = {
             'Lang': 'en',
@@ -61,120 +122,155 @@ class HyattAvailability(HostHotelAvailability):
             'srcd': 'dayprop',
         }
         try:
-            # the requests will redirect a number of times due to how their
-            # site processes the search requests
-            s = requests.session()
-            r = s.get(baseurl, timeout=rtimeout)
-            r = s.get(searchurl, params=params, timeout=rtimeout)
-            self.log.debug('[hyatt:rooms] [{0}]'.format(r.status_code))
-            results = BeautifulSoup(r.text, 'lxml')
-            self.log.error('{0}'.format(
-                'No lodging matches your search criteria.' in r.text
-            ).upper())
-            errors = results.body.select('.error-block #msg .error')
-            if errors:
-                for err in errors:
-                    errtext = [
-                        t.strip() for t in err.findAll(
-                            text=True, recursive=False)
-                        if t.strip() != '']
-                    nothere = '<unavailable>'
-                    errtext = errtext[0] if len(errtext) > 0 else nothere
-                    self.log.debug('ERROR: {0}'.format(errtext))
-                self.log.info('[hyatt:rooms] UNAVAILABLE')
-            else:
-                if unavailable in r.text:
-                    raise ValueError('invalid detection of availability!')
-                self.log.info('[hyatt:rooms] AVAILABLE')
+            # the request will redirect a number of times due to
+            # how their site processes the search requests
+            s = requests.Session()
+            result._session = s
+            r = result.session.get(baseurl, timeout=rtimeout)
+            r = result.session.get(searchurl, params=params, timeout=rtimeout)
+            result._response = r
+            log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+            result._dom = BeautifulSoup(r.text, 'lxml')
+            result._raw = r.text
         except requests.exceptions.ReadTimeout:
-            availability.errors.append('TIMEOUT')
-            self.log.error('[hyatt:rooms] TIMEOUT')
-            return availability
+            log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
-            availability.errors.append('CONNECTION ERROR')
-            self.log.error('[hyatt:rooms] CONNECTION ERROR')
-            return availability
-        availability.status = 'success'
-        return availability
+            log.error(self.msg('CONNECTION ERROR'))
+
+        return result
+
+    def parse(self, result, **kwargs):
+        log = self.log
+        search_text = (
+            'The hotel is not available for your requested travel dates.'
+            ' It is either sold out or not yet open for reservations.'
+        )
+
+        errors = result.dom.body.select('.error-block #msg .error')
+        for error in errors:
+            if result.unavailable is True:
+                break
+            for text in error.findAll(text=True, recursive=False):
+                if search_text in text.strip():
+                    result.unavailable = True
+                    result.post_process = False
+                    log.debug(self.msg('UNAVAILABLE'))
+                    break
+
+        if not errors and search_text in result._raw:
+            errmsg = 'potential invalid detection of availability!'
+            log.error(self.msg(errmsg))
+            raise ValueError(errmsg)
+
+        if not result.unavailable:
+            result.post_process = True
+            log.debug(self.msg('post processing required'))
+
+        return self
 
 
 class HyattPasskeyAvailability(HostHotelAvailability):
-    @timed_function
-    def scrape(self):
-        """
-        TODO: hyatt now uses:
-            https://aws.passkey.com/event/14179207/owner/323/rooms/list
-        """
-        availability = AvailabilityResults()
-        rtimeout = 8
-        datefmt = '{0:%Y}-{0:%m}-{0:%d}'
-        start = datefmt.format(self.start)
-        end = datefmt.format(self.end)
+    name = 'hyatt_passkey'
+    friendly = 'Hyatt (passkey)'
+
+    def scrape(self, result, **kwargs):
+        log = self.log
+        rtimeout = kwargs.get('timeout', 8)
         hyatturl = 'https://aws.passkey.com/event/14179207/owner/323'
         baseurl = '{0}/home'.format(hyatturl)
+        groupurl = '{0}/home/group'.format(hyatturl)
         landingurl = '{0}/landing'.format(hyatturl)
         searchurl = '{0}/rooms/select'.format(hyatturl)
+        datefmt = '{0:%Y}-{0:%m}-{0:%d}'
         payload = {
-            'hotelId': 0,
-            'blockMap.blocks{0}5B0{0}5D.blockId'.format('%'): 0,
-            'blockMap.blocks{0}5B0{0}5D.checkIn'.format('%'): start,
-            'blockMap.blocks{0}5B0{0}5D.checkOut'.format('%'): end,
-            'blockMap.blocks{0}5B0{0}5D.numberOfGuests'.format('%'): 4,
-            'blockMap.blocks{0}5B0{0}5D.numberOfRooms'.format('%'): 1,
-            'blockMap.blocks{0}5B0{0}5D.numberOfChildren'.format('%'): 0,
+            'hotelId': 323,
+            'blockMap.blocks[0].blockId': 0,
+            'blockMap.blocks[0].checkIn': datefmt.format(self.start),
+            'blockMap.blocks[0].checkOut': datefmt.format(self.end),
+            'blockMap.blocks[0].numberOfGuests': 4,
+            'blockMap.blocks[0].numberOfRooms': 1,
+            'blockMap.blocks[0].numberOfChildren': 0,
         }
-        unavailable = 'No lodging matches your search criteria.'
+        groupid = {
+            'groupTypeId': 52445573,
+        }
 
         try:
-            s = requests.session()
+            # there are all sorts of redirects involved here because of the way
+            # the site works to make sure necessary cookies and such are set
+            s = requests.Session()
+            s.headers.update({
+                'User-Agent': (
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:43.0) '
+                    'Gecko/20100101 Firefox/43.0'
+                ),
+                'Host': 'aws.passkey.com',
+            })
+            result._session = s
             r = s.get(baseurl, timeout=rtimeout)
-            r = s.get(landingurl, timeout=rtimeout)
+            r = s.post(groupurl, data=groupid, timeout=rtimeout)
+            s.headers.update({
+                'Referer': landingurl,
+            })
             r = s.post(searchurl, data=payload, timeout=rtimeout)
 
-            self.log.debug('[hyatt:rooms] [{0}]'.format(r.status_code))
-            results = BeautifulSoup(r.text, 'lxml')
-            self.log.error('{0}'.format(
-                unavailable in r.text
-            ).upper())
-            errors = results.body.select('.error-block #msg .error')
-            if errors:
-                for err in errors:
-                    errtext = [
-                        t.strip() for t in err.findAll(
-                            text=True, recursive=False)
-                        if t.strip() != '']
-                    nothere = '<unavailable>'
-                    errtext = errtext[0] if len(errtext) > 0 else nothere
-                    self.log.debug('ERROR: {0}'.format(errtext))
-                self.log.info('[hyatt:rooms] UNAVAILABLE')
-            else:
-                if unavailable in r.text:
-                    raise ValueError('invalid detection of availability!')
-                self.log.info('[hyatt:rooms] AVAILABLE')
+            result._response = r
+            log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+            result._dom = BeautifulSoup(r.text, 'lxml')
+            result._raw = r.text
         except requests.exceptions.ReadTimeout:
-            availability.errors.append('TIMEOUT')
-            self.log.error('[hyatt:rooms] TIMEOUT')
-            return availability
+            log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
-            availability.errors.append('CONNECTION ERROR')
-            self.log.error('[hyatt:rooms] CONNECTION ERROR')
-            return availability
-        availability.status = 'success'
-        return availability
+            log.error(self.msg('CONNECTION ERROR'))
+
+        return result
+
+    def parse(self, result, **kwargs):
+        log = self.log
+        if 'maintenance/index.html' in result.response.url:
+            result.error = True
+            return result
+
+        search_text = 'No lodging matches your search criteria.'
+        selector = '#main .shell #content .message-room'
+        messages = result.dom.body.select(selector)
+        for message in messages:
+            if result.unavailable is True:
+                break
+            for text in message.findAll(text=True, recursive=False):
+                if search_text in text.strip():
+                    result.unavailable = True
+                    result.post_process = False
+                    log.debug(self.msg('UNAVAILABLE'))
+                    break
+
+        if not messages and search_text in result._raw:
+            errmsg = 'potential invalid detection of availability!'
+            log.error(self.msg(errmsg))
+            raise ValueError(errmsg)
+
+        if not result.unavailable:
+            result.post_process = True
+            log.debug(self.msg('post processing required'))
+
+        return result
 
 
 class HiltonAvailability(HostHotelAvailability):
-    @timed_function
-    def scrape(self):
-        rtimeout = 10
-        availability = AvailabilityResults()
+    name = 'hilton'
+    friendly = 'Hilton'
+
+    def scrape(self, result, **kwargs):
+        log = self.log
+        rtimeout = kwargs.get('timeout', 10)
         baseurl = 'http://www3.hilton.com'
         home = '{0}/en/hotels/georgia/hilton-atlanta-ATLAHHH/index.html'
         home = home.format(baseurl)
         search = '{0}/en_US/hi/search/findhotels/index.htm'.format(baseurl)
+        datefmt = '{0:%d} {0:%b} {0:%Y}'
         params = {
-            'arrivalDate': '{0:%d} {0:%b} {0:%Y}'.format(self.start),
-            'departureDate': '{0:%d} {0:%b} {0:%Y}'.format(self.end),
+            'arrivalDate': datefmt.format(self.start),
+            'departureDate': datefmt.format(self.end),
             '_aaaRate': 'on',
             '_aarpRate': 'on',
             '_flexibleDates': 'on',
@@ -210,44 +306,51 @@ class HiltonAvailability(HostHotelAvailability):
             'searchQuery': '',
             'searchType': 'PROP',
         }
-        unavailable = 'There are no rooms available for - at Hilton Atlanta'
         try:
             # the post will redirect a number of times due to how their
             # site processes the search requests
-            s = requests.session()
+            s = requests.Session()
+            result._session = s
             r = s.get(home, timeout=rtimeout)
             r = s.post(search, params=params, timeout=rtimeout)
-            self.log.debug('[hilton:rooms] [{0}]'.format(r.status_code))
-            results = BeautifulSoup(r.text, 'lxml')
-            alert_selector = 'div#main_content div#main div.alertBox p'
-            alertps = results.body.select(alert_selector)
-            alerts = []
-            for alertp in alertps:
-                errtext = alertp.findAll(text=True, recursive=False)
-                errtext = [t.strip() for t in errtext if t.strip() != '']
-                alerts.append(' '.join(errtext))
-            for error in alerts:
-                ratio = fuzz.ratio(error, unavailable)
-                self.log.debug('[hilton:rooms] [{0}] {1}'.format(ratio, error))
-                if ratio > 75:
-                    self.log.info(error)
+            result._response = r
+            log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+            result._dom = BeautifulSoup(r.text, 'lxml')
+            result._raw = r.text
         except requests.exceptions.ReadTimeout:
-            availability.errors.append('TIMEOUT')
-            self.log.error('[hilton:rooms] TIMEOUT')
-            return availability
+            log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
-            availability.errors.append('CONNECTION ERROR')
-            self.log.error('[hilton:rooms] CONNECTION ERROR')
-            return availability
-        availability.status = 'success'
-        return availability
+            log.error(self.msg('CONNECTION ERROR'))
+
+        return result
+
+    def parse(self, result, **kwargs):
+        log = self.log
+        unavailable = 'There are no rooms available for - at Hilton Atlanta'
+        alert_selector = 'div#main_content div#main div.alertBox p'
+        alertps = result.dom.body.select(alert_selector)
+        alerts = []
+        for alertp in alertps:
+            errtext = alertp.findAll(text=True, recursive=False)
+            errtext = [t.strip() for t in errtext if t.strip() != '']
+            alerts.append(' '.join(errtext))
+        for error in alerts:
+            ratio = fuzz.ratio(error, unavailable)
+            if ratio > 75:
+                result.unavailable = True
+                result.post_process = False
+                log.debug(self.msg('UNAVAILABLE ({0}%)'.format(ratio)))
+
+        return result
 
 
 class MariottAvailability(HostHotelAvailability):
-    @timed_function
-    def scrape(self):
-        rtimeout = 5
-        availability = AvailabilityResults()
+    name = 'mariott'
+    friendly = 'Mariott'
+
+    def scrape(self, result, **kwargs):
+        log = self.log
+        rtimeout = kwargs.get('timeout', 5)
         base = 'https://www.marriott.com'
         home = '{0}/hotels/travel/atlmq-atlanta-marriott-marquis/'.format(base)
         search = '{0}/reservation/availabilitySearch.mi'.format(base)
@@ -272,29 +375,36 @@ class MariottAvailability(HostHotelAvailability):
             'propertyCode': 'atlmq',
             'useRewardsPoints': 'false',
         }
+        try:
+            s = requests.Session()
+            result._session = s
+            r = s.get(home, timeout=rtimeout)
+            r = s.get(search, params=params, timeout=rtimeout)
+            result._response = r
+            log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+            result._dom = BeautifulSoup(r.text, 'lxml')
+            result._raw = r.text
+        except requests.exceptions.ReadTimeout:
+            log.error(self.msg('TIMEOUT'))
+        except requests.exceptions.ConnectionError:
+            log.error(self.msg('CONNECTION ERROR'))
+
+        return result
+
+    def parse(self, result, **kwargs):
+        log = self.log
         unavailable = 'Sorry, currently there are no rooms available at this '
         unavailable += 'property for the dates you selected. '
         unavailable += 'Please try your search again'
-        try:
-            s = requests.session()
-            r = s.get(home, timeout=rtimeout)
-            r = s.get(search, params=params, timeout=rtimeout)
-            results = BeautifulSoup(r.text, 'lxml')
-            noselector = '#popover-panel #no-rooms-available'
-            norooms = results.body.select(noselector)
-            if norooms:
-                norooms = norooms[0].get_text().strip()
-                self.log.info(norooms)
-                if unavailable not in norooms:
-                    errmsg = 'norooms present but unavailable not found'
-                    raise ValueError(errmsg)
-        except requests.exceptions.ReadTimeout:
-            availability.errors.append('TIMEOUT')
-            self.log.error('[mariott:rooms] TIMEOUT')
-            return availability
-        except requests.exceptions.ConnectionError:
-            availability.errors.append('CONNECTION ERROR')
-            self.log.error('[mariott:rooms] CONNECTION ERROR')
-            return availability
-        availability.status = 'success'
-        return availability
+        selector = '#popover-panel #no-rooms-available'
+        norooms = result.dom.body.select(selector)
+        if norooms:
+            result.unavailable = True
+            result.post_process = False
+            log.debug(self.msg('UNAVAILABLE'))
+            norooms = norooms[0].get_text().strip()
+            if unavailable not in norooms:
+                errmsg = 'norooms present but unavailable not found'
+                log.error(self.msg(errmsg))
+                raise ValueError(errmsg)
+        return result
