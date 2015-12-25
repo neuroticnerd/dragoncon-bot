@@ -54,14 +54,19 @@ def _scrape_processor():
     result = result_queue.get()
     log.debug('_scrape_processor: {0}'.format(result))
     result.evaluate()
+    if result.post_process:
+        selector = '#content-container > #main-col > #rates_and_rooms_container'
+        content = result.dom.body.select(selector)
+        # log.debug(content[0].prettify())
+        log.debug(result.dom.body.select('#room_type_container')[0].prettify())
     if result.available:
         action_queue.put(result)
         return True
     return False
 
 
-def _manage_worker_pool(crawlers):
-    while crawlers.alive():
+def _manage_processor_pool(crawlers):
+    while crawlers.alive() or not result_queue.empty():
         # keep the worker pool filled
         for x in range(0, min(result_queue.qsize(), processors.free_count())):
             processors.spawn(_scrape_processor)
@@ -76,10 +81,10 @@ def monitor_room_availability(start, end):
     crawlers = CrawlerGroup()
     for scraper in hotel_scrapers:
         crawlers.spawn(_monitor_rooms, scraper)
-    manager = gevent.spawn(_manage_worker_pool, crawlers)
+    manager = gevent.spawn(_manage_processor_pool, crawlers)
     crawlers.join()
     if not result_queue.empty():
-        processors.join(timeout=10)
+        manager.join(timeout=10)
         processors.kill()
     if not manager.ready():
         manager.kill()
