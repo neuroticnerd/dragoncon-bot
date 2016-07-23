@@ -16,7 +16,9 @@ EMAIL = 'eggleton.bryce@gmail.com'
 DESC = 'Python utilities and tools'
 URL = "https://github.com/neuroticnerd/dragoncon-bot"
 REQUIRES = []
-DEPENDSON = []
+DEPENDSON = [
+    'https://github.com/neuroticnerd/armory/tarball/master#egg=armory-0.1.1',
+]
 EXTRAS = {
     'dev': (
         'flake8>=2.5.0',
@@ -65,12 +67,9 @@ with io.open('reqs', 'r') as reqs_file:
                 url=url,
                 egg=egg,
             )
-            REQUIRES.append(repo)
             DEPENDSON.append(dependency)
         else:
             REQUIRES.append(line)
-    print(DEPENDSON)
-    print(REQUIRES)
 
 setup(
     name=PROJECT,
