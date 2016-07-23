@@ -24,16 +24,25 @@ class CommProxy(object):
         self.send_sms = self.conf.sms_enabled
         self.send_email = self.conf.email_enabled
         self._gateway = None
+        log = self.conf.get_logger(__name__)
 
-        with io.open(config, 'r', encoding='utf-8') as f:
-            config_raw = f.read()
-            commcache = json.loads(config_raw, object_pairs_hook=OrderedDict)
-            self._smtp_login = commcache.get('smtp_login', {})
-            self._sms_gateways = commcache.get('sms_gateways', {})
-            self._lookups = commcache.get('lookups', {})
-            self.recipients = [
-                self._lookups.get(to) for to in commcache.get('recipients', [])
-            ]
+        try:
+            with io.open(config, 'r', encoding='utf-8') as f:
+                config_raw = f.read()
+                commdata = json.loads(
+                    config_raw, object_pairs_hook=OrderedDict
+                )
+        except OSError:
+            warning_message = '{0} configuration file could not be accessed.'
+            log.warning(warning_message.format(config))
+            commdata = {}
+
+        self._smtp_login = commdata.get('smtp_login', {})
+        self._sms_gateways = commdata.get('sms_gateways', {})
+        self._lookups = commdata.get('lookups', {})
+        self.recipients = [
+            self._lookups.get(to) for to in commdata.get('recipients', [])
+        ]
 
         self._jinja = Environment(
             loader=PackageLoader('dragonite', 'templates')

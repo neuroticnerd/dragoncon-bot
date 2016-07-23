@@ -58,8 +58,6 @@ def _monitor_rooms(scraper):
         try:
             result = scraper()
             result.evaluate()
-            action_queue.put(result)
-            # settings.comm.notify(result)
 
             if result.post_process:
                 selector = (
