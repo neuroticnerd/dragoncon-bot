@@ -154,11 +154,11 @@ class DragoniteConfig(object):
 
     @property
     def sms_enabled(self):
-        return self.cache['send_sms']
+        return self.cache.get('send_sms', False)
 
     @property
     def email_enabled(self):
-        return self.cache['send_email']
+        return self.cache.get('send_email', False)
 
 
 settings = DragoniteConfig()
