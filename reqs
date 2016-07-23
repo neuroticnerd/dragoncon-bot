@@ -1,3 +1,4 @@
+-e git+https://github.com/neuroticnerd/armory.git
 requests>=2.8.1
 lxml>=3.4.4
 greenlet>=0.4.9
