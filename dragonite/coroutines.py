@@ -1,16 +1,16 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from __future__ import division, print_function
 
-import timeit
 import gevent.monkey
 import gevent
+import timeit
 
+from armory.gevent import patch_gevent_hub
+from decimal import Decimal
 from gevent.pool import Group, Pool
 from gevent.queue import Queue
-from decimal import Decimal
-from armory.gevent import patch_gevent_hub
-from dragonite import availability
+
+from dragonite import scrapers
 from dragonite.conf import settings
 
 
@@ -28,7 +28,7 @@ class CrawlerGroup(Group):
         return False
 
 
-def _monitor_rooms(scraper):
+def _monitor_rooms_old(scraper):
     log = settings.get_logger(__name__)
     log.info('monitoring {0} room availability...'.format(scraper.friendly))
     max_attempts = settings.max_attempts
@@ -49,16 +49,50 @@ def _monitor_rooms(scraper):
     return '{0}'.format(scraper.name)
 
 
+def _monitor_rooms(scraper):
+    log = settings.get_logger(__name__)
+    log.info('monitoring {0} room availability...'.format(scraper.friendly))
+    max_attempts = settings.max_attempts
+    iteration = 0
+    while max_attempts == 0 or iteration < max_attempts:
+        try:
+            result = scraper()
+            result.evaluate()
+            action_queue.put(result)
+            # settings.comm.notify(result)
+
+            if result.post_process:
+                selector = (
+                    '#content-container > #main-col > '
+                    '#rates_and_rooms_container'
+                )
+                content = result.dom.body.select(selector)
+                # log.debug(content[0].prettify())
+                # log.debug(result.dom.body.select('#room_type_container')[0].prettify())
+            if result.available:
+                log.debug('{0}: AVAILABILITY FOUND')
+                action_queue.put(result)
+            else:
+                log.debug('{0}: UNAVAILABLE')
+            gevent.sleep(0.1)
+        except:
+            raise
+        iteration += 1
+    return '{0}'.format
+
+
 def _scrape_processor():
     log = settings.get_logger(__name__)
     result = result_queue.get()
     log.debug('_scrape_processor: {0}'.format(result))
     result.evaluate()
     if result.post_process:
-        selector = '#content-container > #main-col > #rates_and_rooms_container'
+        selector = (
+            '#content-container > #main-col > #rates_and_rooms_container'
+        )
         content = result.dom.body.select(selector)
         # log.debug(content[0].prettify())
-        log.debug(result.dom.body.select('#room_type_container')[0].prettify())
+        # log.debug(result.dom.body.select('#room_type_container')[0].prettify())
     if result.available:
         action_queue.put(result)
         return True
@@ -74,20 +108,34 @@ def _manage_processor_pool(crawlers):
         gevent.sleep(0.1)
 
 
+def _action_processor():
+    log = settings.get_logger(__name__)
+    with settings.comm as gateway:
+        for action in action_queue:
+            gateway.notify(action)
+            log.debug('_action_processor: {0}'.format(action))
+    return True
+
+
 def monitor_room_availability(start, end):
     log = settings.get_logger(__name__)
     log.debug('spawning room availability monitors')
-    hotel_scrapers = availability.get_scrapers(start, end)
+    hotel_scrapers = scrapers.get_scrapers(start, end)
     crawlers = CrawlerGroup()
     for scraper in hotel_scrapers:
         crawlers.spawn(_monitor_rooms, scraper)
     manager = gevent.spawn(_manage_processor_pool, crawlers)
+    mailman = gevent.spawn(_action_processor)
     crawlers.join()
     if not result_queue.empty():
         manager.join(timeout=10)
         processors.kill()
     if not manager.ready():
         manager.kill()
+    action_queue.put(StopIteration)
+    mailman.join(timeout=10)
+    if not mailman.ready():
+        mailman.kill()
     return crawlers
 
 

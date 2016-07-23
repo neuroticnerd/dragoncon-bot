@@ -53,9 +53,9 @@ CLASSIFIERS = [
 ]
 
 version_file = '{0}/__init__.py'.format(PROJECT_MODULE)
-with open(version_file, 'r', encoding='utf-8') as fver:
-    re_ver = r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']$'
-    VERSION = re.search(re_ver, fver.read(), re.MULTILINE).group(1)
+ver_find = r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']'
+with open(version_file, 'r', encoding='utf-8') as ver_file:
+    VERSION = re.search(ver_find, ver_file.read(), re.MULTILINE).group(1)
 
 with open('README.md', 'r', encoding='utf-8') as f:
     LONG_DESC = f.read()

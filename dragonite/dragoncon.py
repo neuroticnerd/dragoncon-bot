@@ -23,6 +23,9 @@ class DragonCon(object):
         self.dates_selector = '.region-countdown > div > h2'
         self.interval = interval
 
+    def __call__(self, runme=True):
+        return self.run(info_only=(not runme))
+
     @property
     def site_content(self):
         if self._site_main is None:
@@ -66,7 +69,7 @@ class DragonCon(object):
             raise ValueError(errmsg.format(domlen, self.dates_selector))
         dateinfo = unidecode(domdate[0].get_text())
         parts = [p.strip().replace(',', ' ') for p in dateinfo.split('-')]
-        parts = [' '.join(p.split()) for p in parts]
+        parts = [' '.join(p.split()[:2]) for p in parts]
         log.debug(parts)
         numparts = len(parts)
         if numparts != 2:
@@ -77,37 +80,38 @@ class DragonCon(object):
         self._start = dateutil.parser.parse(parts[0]).date()
         self._end = dateutil.parser.parse(parts[1]).date()
         self._start = self._start.replace(year=self._end.year)
-        log.info("start date: {0}".format(self._start))
-        log.info("  end date: {0}".format(self._end))
+        log.debug("start date: {0}".format(self._start))
+        log.debug("  end date: {0}".format(self._end))
         settings.cache['event_start'] = self.start
         settings.cache['event_end'] = self.end
         settings.cache.flush()
-
-    def __call__(self, runme=True):
-        return self.run(info_only=(not runme))
 
     def run(self, info_only=False):
         log = self._log
         for w in settings._warnings:
             log.warning(w)
         coroutines.monkey_patch()
-        log.info('gevent monkey patching done')
+        log.debug('gevent monkey patching done')
         try:
             log.debug('fetching event info...')
             dcstr = '{0}'.format(self.event_info)
-            log.info(dcstr)
+            log.debug(dcstr)
+            log.info('*------------------------*')
+            log.info('|     DragonCon {0}     |'.format(self.start.year))
+            log.info('| start date: {0} |'.format(self.start))
+            log.info('|   end date: {0} |'.format(self.end))
+            log.info('*------------------------*')
             if info_only:
                 log.debug('info only; terminating')
                 return True
             log.debug('spawning tasks...')
             hotels = coroutines.monitor_room_availability(self.start, self.end)
-            # log.info([h.value for h in hotels])
-            # gevent.wait(tasks)
+            log.debug([h.value for h in hotels])
         except KeyboardInterrupt:
             coroutines.killalltasks()
             log.error('terminating program due to KeyboardInterrupt')
         except requests.exceptions.ConnectionError as e:
             coroutines.killalltasks()
             log.debug('{0}'.format(e))
-            log.error('internet connection error! now aborting!')
+            log.error('internet connection error; aborting!')
         log.info('dragoncon bot exiting\n')

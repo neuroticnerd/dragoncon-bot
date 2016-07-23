@@ -1,14 +1,17 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from __future__ import division, print_function
 
-import logging
 import io
+import logging
 import sys
 
 from dateutil.parser import parse
+
 from armory.environ import Environment
 from armory.serialize import jsonify, jsonexpand
+from simplejson.scanner import JSONDecodeError
+
+from .comm import CommProxy
 
 if (sys.version_info > (3, 0)):
     # FileNotFoundError is built-in in Python 3
@@ -24,7 +27,9 @@ class DragoniteCache(object):
         self.cachefile = cachefile or '.dragonite'
         try:
             with io.open(self.cachefile, 'r', encoding='utf-8') as cf:
-                self._data.update(jsonexpand(cf.read()))
+                raw = cf.read()
+                if raw:
+                    self._data.update(jsonexpand(raw))
             if 'event_start' in self._data:
                 self._data['event_start'] = parse(self._data['event_start'])
             if 'event_end' in self._data:
@@ -96,6 +101,8 @@ class DragoniteConfig(object):
         self.interval = 1
         self.max_attempts = options.get('max_attempts', 0)
 
+        self.comm = CommProxy(settings=self)
+
     @property
     def cache(self):
         if not hasattr(self, '_cache'):
@@ -144,6 +151,14 @@ class DragoniteConfig(object):
     @property
     def loglevelname(self):
         return logging.getLevelName(self.loglevel)
+
+    @property
+    def sms_enabled(self):
+        return self.cache['send_sms']
+
+    @property
+    def email_enabled(self):
+        return self.cache['send_email']
 
 
 settings = DragoniteConfig()

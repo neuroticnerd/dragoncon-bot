@@ -1,0 +1,27 @@
+{% if debug_test %}
+{% if render_html %}<p><strong>{% endif %}
+PLEASE DISREGARD, THIS IS A TEST MESSAGE FROM THE DRAGONITE BOT.
+{% if render_html %}<br>{% endif %}
+PLEASE DO NOT REPLY TO THIS MESSAGE!
+{% if render_html %}</strong></p>{% endif %}
+{% endif %}
+{% if render_html %}<p>{% endif %}
+{{ to_name }},
+{% if render_html %}</p>{% endif %}
+{% if render_html %}<p>{% endif %}
+Dragonite bot has detected potential room availability at a Dragon Con host hotel. Dragonite is not able to reserve or hold a room; it may not be available for very long, so further details including contact information for the hotel can be found below to quickly attempt to reserve the room.
+{% if render_html %}</p>{% endif %}
+{% if render_html %}<p>{% endif %}
+{% if render_html %}
+<strong><a href="{{ hotel.link }}">{{ hotel.name }}</a></strong>
+{% else %}
+{{ hotel.name }}: {{ hotel.link }}
+{% endif %}
+{% if render_html %}<br>{% endif %}
+{% if render_html %}<strong>{% endif %}Phone:{% if render_html %}</strong>{% endif %} {{ hotel.phone }}
+{% if render_html %}<br>{% endif %}
+{% if render_html %}<strong>{% endif %}Room Details:{% if render_html %}</strong>{% endif %} <unknown>
+{% if render_html %}</p>{% endif %}
+{% if render_html %}<p><em>{% endif %}
+*** This email sent by Dragonite | Attached files contain debug data ***
+{% if render_html %}</em></p>{% endif %}
