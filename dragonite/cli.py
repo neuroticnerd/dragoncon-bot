@@ -62,16 +62,18 @@ def dragonite(context, cache, debug, loglevel, max_attempts, verbose):
 
 @click.command()
 @click.option(
-    '-m', '--monitor', 'monitor',
-    is_flag=True, default=False,
-    help='Causes the room availability to only be checked once.'
+    '-m', '--max-tries', 'max_attempts',
+    type=int, default=1,
+    help='Set the max number of tries to find room availability.'
 )
 @click.pass_context
-def rooms(context, monitor):
-    if monitor:
-        context.obj.monitor_room_availability()
-    else:
-        context.obj.get_room_availability()
+def rooms(context, max_attempts):
+    log = settings.get_logger(__name__)
+    if max_attempts != 1:
+        log.warning('max attempts is not 1! ({0})'.format(max_attempts))
+    settings.max_attempts = max_attempts
+    log.debug('running "rooms" subcommand')
+    context.obj.run()
 
 
 @click.command()

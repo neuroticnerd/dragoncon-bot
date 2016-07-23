@@ -51,7 +51,7 @@ def _monitor_rooms_old(scraper):
 
 def _monitor_rooms(scraper):
     log = settings.get_logger(__name__)
-    log.info('monitoring {0} room availability...'.format(scraper.friendly))
+    log.info('checking {0} room availability...'.format(scraper.friendly))
     max_attempts = settings.max_attempts
     iteration = 0
     while max_attempts == 0 or iteration < max_attempts:
@@ -68,10 +68,10 @@ def _monitor_rooms(scraper):
                 # log.debug(content[0].prettify())
                 # log.debug(result.dom.body.select('#room_type_container')[0].prettify())
             if result.available:
-                log.debug('{0}: AVAILABILITY FOUND')
+                log.info('{0}: AVAILABILITY FOUND'.format(scraper.friendly))
                 action_queue.put(result)
             else:
-                log.debug('{0}: UNAVAILABLE')
+                log.info('{0}: UNAVAILABLE'.format(scraper.friendly))
             gevent.sleep(0.1)
         except:
             raise
@@ -110,6 +110,9 @@ def _action_processor():
     log = settings.get_logger(__name__)
     with settings.comm as gateway:
         for action in action_queue:
+            log.info('processing notifications for {0}'.format(
+                action.parent.friendly
+            ))
             gateway.notify(action)
             log.debug('_action_processor: {0}'.format(action))
     return True
