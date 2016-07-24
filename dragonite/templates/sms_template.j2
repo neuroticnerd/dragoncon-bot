@@ -1,5 +1,5 @@
-{% if debug_test %}THIS IS A TEST MESSAGE, PLEASE DISREGARD!{% endif %}
-{% if inject_message %}{{ inject_message }}{% endif %}
+{% if debug_test %}THIS IS A TEST MESSAGE, PLEASE DISREGARD!{% endif %}{% if inject_message %}
+{{ inject_message }}{% endif %}
 Potential room availability was found at the {{ hotel.name }} dragon con host hotel. An email has been sent to you containing full details.
 hotel contact: {{ hotel.phone }}
 *** sent by Dragonite, please do not reply ***
