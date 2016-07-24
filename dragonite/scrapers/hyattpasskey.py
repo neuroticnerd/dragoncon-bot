@@ -95,4 +95,6 @@ class HyattPasskeyAvailability(HostHotelScraper):
             result.post_process = True
             log.debug(self.msg('post processing required'))
 
+        result.available = not result.unavailable
+
         return result

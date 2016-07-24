@@ -97,4 +97,6 @@ class HiltonAvailability(HostHotelScraper):
                 result.post_process = False
                 log.debug(self.msg('UNAVAILABLE ({0}%)'.format(ratio)))
 
+        result.available = not result.unavailable
+
         return result

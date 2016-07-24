@@ -76,5 +76,7 @@ class MariottAvailability(HostHotelScraper):
             if unavailable not in norooms:
                 errmsg = 'norooms present but unavailable not found'
                 log.error(self.msg(errmsg))
-                raise ValueError(errmsg)
+
+        result.available = not result.unavailable
+
         return result
