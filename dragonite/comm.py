@@ -16,7 +16,8 @@ from jinja2 import Environment, PackageLoader
 
 class CommProxy(object):
     COMM_CONFIG_FILE = '.commconfig'
-    DEFAULT_SUBJECT = 'Dragon Con: Host Hotel Availability Update'
+    DEFAULT_EMAIL_SUBJECT = 'Dragon Con Alert: Host Hotel Availability'
+    DEFAULT_MMS_SUBJECT = 'Dragon Con Alert'
 
     def __init__(self, config=None, send_email=True, send_sms=True, **kwargs):
         if config is None:
@@ -51,7 +52,8 @@ class CommProxy(object):
         )
         self.sms_template = self._jinja.get_template('sms_template.j2')
         self.email_template = self._jinja.get_template('email_template.j2')
-        self.email_subject = kwargs.get('subject', self.DEFAULT_SUBJECT)
+        self._email_subject = kwargs.get('subject', self.DEFAULT_EMAIL_SUBJECT)
+        self._mms_subject = kwargs.get('mms_subject', self.DEFAULT_MMS_SUBJECT)
 
     def __enter__(self):
         if self._gateway is None:
@@ -62,6 +64,18 @@ class CommProxy(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.gateway.__exit__(exc_type, exc_value, traceback)
         self.gateway = None
+
+    @property
+    def email_subject(self):
+        if self.conf.debug:
+            return '***TEST*** ' + self._email_subject
+        return self._email_subject
+
+    @property
+    def mms_subject(self):
+        if self.conf.debug:
+            return '***TEST*** ' + self._mms_subject
+        return self._mms_subject
 
     def notify(self, data_object):
         """
@@ -88,6 +102,8 @@ class CommProxy(object):
             },
             'debug_test': self.conf.debug,
         }
+        if hasattr(self.conf, 'inject_message'):
+            template_variables['inject_message'] = self.conf.inject_message
 
         if self.send_email:
             cookies = json.dumps(
@@ -147,7 +163,7 @@ class CommProxy(object):
                 message_type = 'mms'
             message = MIMEMultipart(_subtype='mixed')
             if message_type == 'mms':
-                message['subject'] = 'Dragon Con Alert'
+                message['subject'] = self.mms_subject
             message.attach(MIMEText(message_text, _subtype='plain'))
             for to in self.recipients:
                 self.gateway.send(to[message_type], message.as_string())

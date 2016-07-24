@@ -102,13 +102,20 @@ def rooms(context, max_attempts):
 
 
 @click.command()
+@click.option(
+    '--message', 'message',
+    default=None,
+    help='Message to inject into test alerts that are sent.'
+)
 @click.pass_context
-def test(context):
+def test(context, message):
     def get_cookies_dict():
         return {'test-cookie': 'some stupid value'}
     from dragonite.scrapers.base import ScrapeResults
     log = settings.get_logger(__name__)
     settings.debug = True
+    if message is not None:
+        settings.inject_message = message
     with settings.comm as gateway:
         log.debug(gateway._gateway._server)
         log.debug(gateway._gateway._smtp_user)

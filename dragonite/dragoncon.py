@@ -111,7 +111,6 @@ class DragonCon(object):
             log.debug('fetching event info...')
             dcstr = '{0}'.format(self.event_info)
             log.debug(dcstr)
-            log.info(self.event_info_pretty)
             if info_only:
                 log.debug('info only; terminating')
                 return True
