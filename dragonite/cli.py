@@ -25,6 +25,11 @@ from .constants import DRAGONITE_ASCII
     help='Puts Dragonite into debug mode.'
 )
 @click.option(
+    '-i', '--info', 'info',
+    is_flag=True, default=False,
+    help='Dragonite logs configuration data before running.'
+)
+@click.option(
     '-l', '--loglevel', 'loglevel',
     type=click.Choice(['debug', 'info', 'warn', 'error']),
     default='info',
@@ -36,28 +41,48 @@ from .constants import DRAGONITE_ASCII
     help='Set the max number of tries to find room availability.'
 )
 @click.option(
-    '-v', '--verbose', 'verbose',
+    '-s', '--simple', 'simple',
+    is_flag=True, default=False,
+    help='Prevents Dragonite from logging extraneous things like ASCII art.'
+)
+@click.option(
+    '--verbose', 'verbose',
     is_flag=True, default=False,
     help='Causes log messages to include date, time, and module information.'
 )
 @click.version_option(message='%(prog)s %(version)s')
 @click.pass_context
-def dragonite(context, cache, debug, loglevel, max_attempts, verbose):
+def dragonite(
+    context, cache, debug, info, loglevel, max_attempts, simple, verbose
+):
     # CLI options/args override defaults and env vars
     settings.use_cache = cache
     settings.debug = debug
+    settings.info = info
     settings.loglevel = loglevel
     if max_attempts is not None:
         settings.max_attempts = max_attempts
+    settings.simple = simple
     settings.verbose = verbose
     dragoncon_bot = DragonCon()
     context.obj = dragoncon_bot
     log = settings.get_logger(__name__)
     log.debug(settings)
     log.debug('subcommand=\'{0}\''.format(context.invoked_subcommand))
-    log.info(DRAGONITE_ASCII)
-    if context.invoked_subcommand is None:
-        dragoncon_bot.run()
+    if not settings.simple:
+        log.info(DRAGONITE_ASCII)
+    if settings.info:
+        log.info(dragoncon_bot.event_info_pretty)
+        log.info('SETTINGS = {0}'.format(settings.dumps(pretty=True)))
+        log.info('SMTP INFO = {0}'.format(
+            settings.comm.dumps('smtp', pretty=True)
+        ))
+        log.info('LOOKUPS INFO = {0}'.format(
+            settings.comm.dumps('lookups', pretty=True)
+        ))
+        log.info('RECIPIENTS = {0}'.format(
+            settings.comm.dumps('recipients', pretty=True)
+        ))
 
 
 @click.command()

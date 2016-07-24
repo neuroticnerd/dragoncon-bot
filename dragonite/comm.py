@@ -7,6 +7,7 @@ import json
 from collections import OrderedDict
 
 from armory.phone import phone
+from armory.serialize import jsonify
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -37,6 +38,7 @@ class CommProxy(object):
             log.warning(warning_message.format(config))
             commdata = {}
 
+        self.commdata = commdata
         self._smtp_login = commdata.get('smtp_login', {})
         self._sms_gateways = commdata.get('sms_gateways', {})
         self._lookups = commdata.get('lookups', {})
@@ -157,3 +159,22 @@ class CommProxy(object):
                     to['comment'],
                     message.as_string()
                 ))
+
+    def dumps(self, constrain=None, pretty=False):
+        info = OrderedDict()
+        if constrain is None or constrain == 'smtp':
+            info['smtp_server'] = self.commdata['smtp_login']['server']
+            info['smtp_username'] = self.commdata['smtp_login']['username']
+        if constrain is None or constrain == 'lookups':
+            lookinfo = []
+            for key in self.commdata['lookups']:
+                person = self.commdata['lookups'][key]
+                lookinfo.append('{0:8}  {1}  {2}'.format(
+                    person['first_name'],
+                    person['phone'],
+                    person['email']
+                ))
+            info = lookinfo
+        if constrain is None or constrain == 'recipients':
+            info = self.commdata['recipients']
+        return jsonify(info, pretty=pretty)

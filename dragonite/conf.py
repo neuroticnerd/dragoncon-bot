@@ -5,11 +5,11 @@ import io
 import logging
 import sys
 
+from collections import OrderedDict
 from dateutil.parser import parse
 
 from armory.environ import Environment
 from armory.serialize import jsonify, jsonexpand
-from simplejson.scanner import JSONDecodeError
 
 from .comm import CommProxy
 
@@ -100,6 +100,9 @@ class DragoniteConfig(object):
 
         self.interval = 1
         self.max_attempts = options.get('max_attempts', 0)
+        self.debug = options.get('debug', False)
+        self.info = options.get('info', True)
+        self.simple = options.get('simple', False)
 
         self.comm = CommProxy(settings=self)
 
@@ -159,6 +162,21 @@ class DragoniteConfig(object):
     @property
     def email_enabled(self):
         return self.cache.get('send_email', False)
+
+    def dumps(self, pretty=False):
+        config = OrderedDict()
+        config['debug'] = self.debug
+        config['info'] = self.info
+        config['simple'] = self.simple
+        config['use_cache'] = self.use_cache
+        config['max_attempts'] = self.max_attempts
+        config['loglevel'] = self.loglevel
+        config['loglevelname'] = self.loglevelname
+        config['verbose'] = self.verbose
+        config['interval'] = self.interval
+        config['sms_enabled'] = self.sms_enabled
+        config['email_enabled'] = self.email_enabled
+        return jsonify(config, pretty=pretty)
 
 
 settings = DragoniteConfig()

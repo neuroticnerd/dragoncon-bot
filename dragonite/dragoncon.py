@@ -54,6 +54,21 @@ class DragonCon(object):
         info['end'] = self.end
         return '{0}'.format(jsonify(info))
 
+    @property
+    def event_info_pretty(self):
+        info_template = (
+            '*------------------------*\n'
+            '|     DragonCon {year}     |\n'
+            '| start date: {start} |\n'
+            '|   end date: {end} |\n'
+            '*------------------------*'
+        )
+        return info_template.format(
+            year=self.start.year,
+            start=self.start,
+            end=self.end
+        )
+
     def event_dates(self):
         log = self._log
         try:
@@ -96,11 +111,7 @@ class DragonCon(object):
             log.debug('fetching event info...')
             dcstr = '{0}'.format(self.event_info)
             log.debug(dcstr)
-            log.info('*------------------------*')
-            log.info('|     DragonCon {0}     |'.format(self.start.year))
-            log.info('| start date: {0} |'.format(self.start))
-            log.info('|   end date: {0} |'.format(self.end))
-            log.info('*------------------------*')
+            log.info(self.event_info_pretty)
             if info_only:
                 log.debug('info only; terminating')
                 return True
