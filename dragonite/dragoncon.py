@@ -82,7 +82,7 @@ class DragonCon(object):
         if settings.checkout is not None:
             value = dateutil.parser.parse(settings.checkout).date()
         else:
-            value = self.start
+            value = self.end
         return value
 
     def event_dates(self):
