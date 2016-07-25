@@ -9,13 +9,16 @@ from .base import HostHotelScraper
 from ..conf import settings
 
 
-class MariottAvailability(HostHotelScraper):
-    name = 'mariott'
-    friendly = 'Atlanta Mariott Marquis'
+class MarriottAvailability(HostHotelScraper):
+    name = 'marriott'
+    friendly = 'Atlanta Marriott Marquis'
     phone = '404-521-0000'
     link = (
-        'https://www.marriott.com/reservation/availability.mi'
-        '?propertyCode=ATLmq&path=marriott&gc'
+        'https://www.marriott.com/meeting-event-hotels/group-corporate-travel'
+        '/groupCorp.mi?resLinkData=Dragon%20Con%202016'
+        '%5Eatlmq%60dradraa%7Cdradrad%7Cdradrat%7Cdradraq%7Cdradrap'
+        '%60229.00-400.00%60USD%60false%604%6009/01/16%6009/05/16%6008/10/16&'
+        'app=resvlink&stop_mobi=yes'
     )
     address = '265 Peachtree Center Avenue Atlanta, GA 30303'
 
@@ -90,11 +93,10 @@ class MariottAvailability(HostHotelScraper):
                 log.debug(price)
                 if lowest is None or price < lowest:
                     lowest = price
-            if lowest is not None:
-                if lowest > settings.max_price:
-                    result.unavailable = True
-                    msg = 'availability found but price too high ({0})'
-                    log.info(msg.format(lowest))
+            if lowest is not None and lowest > settings.max_price:
+                result.unavailable = True
+                msg = 'availability found but price too high ({0})'
+                log.info(msg.format(lowest))
 
         result.available = not result.unavailable
 

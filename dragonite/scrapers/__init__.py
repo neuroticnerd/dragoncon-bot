@@ -4,7 +4,8 @@ from __future__ import absolute_import, unicode_literals
 from .hilton import HiltonAvailability
 from .hyatt import HyattAvailability
 from .hyattpasskey import HyattPasskeyAvailability
-from .mariott import MariottAvailability
+from .marriott import MarriottAvailability
+from .marriott_discount import MarriottDiscountAvailability
 
 
 def get_scrapers(start, end):
@@ -13,5 +14,6 @@ def get_scrapers(start, end):
         HyattAvailability(start, end),
         HyattPasskeyAvailability(start, end),
         HiltonAvailability(start, end),
-        MariottAvailability(start, end),
+        MarriottAvailability(start, end),
+        MarriottDiscountAvailability(start, end),
     )

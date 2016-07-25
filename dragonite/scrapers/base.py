@@ -43,11 +43,12 @@ class ScrapeResults(object):
 class HostHotelScraper(object):
     msgfmt = '{name}:rooms  {msg}'
 
-    def __init__(self, start, end, numppl=4):
+    def __init__(self, start, end, numppl=4, numrooms=1):
         self.log = settings.get_logger(__name__)
         self.start = start
         self.end = end
         self.numppl = numppl
+        self.numrooms = numrooms
 
     def __call__(self, *args, **kwargs):
         """ convenience method of triggering a scrape """
