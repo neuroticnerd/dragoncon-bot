@@ -1,0 +1,16 @@
+{% if debug_test %}PLEASE DISREGARD, THIS IS A TEST MESSAGE FROM THE DRAGONITE BOT.
+PLEASE DO NOT REPLY TO THIS MESSAGE!{% endif %}
+
+{{ to_name }},
+
+{% if inject_message %}
+{{ inject_message }}
+{% endif %}{% include 'email_body.j2' %}
+
+{{ hotel.name }}: {{ hotel.link }}
+Phone: {{ hotel.phone }}
+Room Details: {{ hotel.rooms }}
+
+Alert ID: {{ alert_uuid }}
+
+*** This email sent by Dragonite | Attached files contain debug data ***

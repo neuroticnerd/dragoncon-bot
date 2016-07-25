@@ -1,0 +1,39 @@
+<div>
+{% if debug_test %}
+<p><strong>
+    PLEASE DISREGARD, THIS IS A TEST MESSAGE FROM THE DRAGONITE BOT.
+    <br>
+    PLEASE DO NOT REPLY TO THIS MESSAGE!
+</strong></p>
+{% endif %}
+<p>
+    {{ to_name }},
+</p>
+{% if inject_message %}
+<p>
+    {{ inject_message }}
+</p>
+{% endif %}
+<p>
+    {% include 'email_body.j2' %}
+</p>
+<p>
+    <strong>
+        <a href="{{ hotel.link }}">{{ hotel.name }}</a>
+    </strong>
+    <br>
+    <strong>Phone:</strong> {{ hotel.phone }}
+    <br>
+    <strong>Room Details:</strong> {{ hotel.rooms }}
+</p>
+<p>
+    Alert ID: <strong>{{ alert_uuid }}</strong>
+</p>
+<p>
+    <em>
+        *** View
+        <a href="https://github.com/neuroticnerd/dragoncon-bot">Dragonite on GitHub</a>
+        | Attached files contain debug data ***
+    </em>
+</p>
+</div>

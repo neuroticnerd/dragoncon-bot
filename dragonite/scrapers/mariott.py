@@ -6,6 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .base import HostHotelScraper
+from ..conf import settings
 
 
 class MariottAvailability(HostHotelScraper):
@@ -76,6 +77,24 @@ class MariottAvailability(HostHotelScraper):
             if unavailable not in norooms:
                 errmsg = 'norooms present but unavailable not found'
                 log.error(self.msg(errmsg))
+
+        if not result.unavailable:
+            selector = (
+                'div.results-container div.room-rate-results '
+                'div.rate-price .t-price'
+            )
+            rooms = result.dom.body.select(selector)
+            lowest = None
+            for room in rooms:
+                price = float(room.get_text().strip().split()[0])
+                log.debug(price)
+                if lowest is None or price < lowest:
+                    lowest = price
+            if lowest is not None:
+                if lowest > settings.max_price:
+                    result.unavailable = True
+                    msg = 'availability found but price too high ({0})'
+                    log.info(msg.format(lowest))
 
         result.available = not result.unavailable
 

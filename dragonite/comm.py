@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import io
 import json
+import uuid
 
 from collections import OrderedDict
 
@@ -89,6 +90,8 @@ class CommProxy(object):
         use an MMS gateway if it is longer than that limit.
         """
         log = self.conf.get_logger(__name__)
+        alert_uuid = uuid.uuid4().hex
+        log.info('UUID={0}'.format(alert_uuid))
 
         template_variables = {
             'to_name': ', '.join(
@@ -99,8 +102,10 @@ class CommProxy(object):
                 'phone': data_object.parent.phone,
                 'phone': data_object.parent.phone,
                 'link': data_object.parent.link,
+                'rooms': '<unknown>',
             },
             'debug_test': self.conf.debug,
+            'alert_uuid': alert_uuid,
         }
         if hasattr(self.conf, 'inject_message'):
             template_variables['inject_message'] = self.conf.inject_message
@@ -147,6 +152,16 @@ class CommProxy(object):
                 filename='cookies.json'
             )
             email.attach(cookies)
+
+            config = MIMEApplication(
+                self.conf.dumps(pretty=True), _subtype='json'
+            )
+            config.add_header(
+                'Content-Disposition',
+                'attachment',
+                filename='settings.json'
+            )
+            email.attach(config)
 
             self.gateway.send(to_list, email.as_string())
             log.debug((

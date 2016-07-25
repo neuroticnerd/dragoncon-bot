@@ -65,6 +65,7 @@ class DragoniteConfig(object):
     fmt_long = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
     fmt_short = '%(message)s'
     fmt_date = '%Y-%m-%d %H:%M:%S'
+    MAX_PRICE = 300
 
     def __init__(self, **options):
         self._warnings = []
@@ -163,6 +164,18 @@ class DragoniteConfig(object):
     def email_enabled(self):
         return self.cache.get('send_email', False)
 
+    @property
+    def max_price(self):
+        return self.cache.get('max_price', self.MAX_PRICE)
+
+    @property
+    def checkin(self):
+        return self.cache.get('checkin', None)
+
+    @property
+    def checkout(self):
+        return self.cache.get('checkout', None)
+
     def dumps(self, pretty=False):
         config = OrderedDict()
         config['debug'] = self.debug
@@ -170,6 +183,9 @@ class DragoniteConfig(object):
         config['simple'] = self.simple
         config['use_cache'] = self.use_cache
         config['max_attempts'] = self.max_attempts
+        config['max_price'] = self.max_price
+        config['checkin'] = self.checkin
+        config['checkout'] = self.checkout
         config['loglevel'] = self.loglevel
         config['loglevelname'] = self.loglevelname
         config['verbose'] = self.verbose

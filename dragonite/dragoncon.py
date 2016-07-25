@@ -69,6 +69,22 @@ class DragonCon(object):
             end=self.end
         )
 
+    @property
+    def checkin(self):
+        if settings.checkin is not None:
+            value = dateutil.parser.parse(settings.checkin).date()
+        else:
+            value = self.start
+        return value
+
+    @property
+    def checkout(self):
+        if settings.checkout is not None:
+            value = dateutil.parser.parse(settings.checkout).date()
+        else:
+            value = self.start
+        return value
+
     def event_dates(self):
         log = self._log
         try:
@@ -115,7 +131,10 @@ class DragonCon(object):
                 log.debug('info only; terminating')
                 return True
             log.debug('spawning tasks...')
-            hotels = coroutines.monitor_room_availability(self.start, self.end)
+            hotels = coroutines.monitor_room_availability(
+                self.checkin,
+                self.checkout
+            )
             log.debug([h.value for h in hotels])
         except KeyboardInterrupt:
             coroutines.killalltasks()
