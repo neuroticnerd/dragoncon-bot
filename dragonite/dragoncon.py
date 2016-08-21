@@ -1,24 +1,26 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from __future__ import division, print_function
 
-import requests
 import dateutil.parser
+import logging
+import requests
 
 from collections import OrderedDict
+
 from bs4 import BeautifulSoup
 from unidecode import unidecode
+
 from armory.serialize import jsonify
 
-from dragonite import coroutines
-from dragonite.conf import settings
+from . import coroutines
+from .conf import settings
 
 
 class DragonCon(object):
     site_url = 'http://www.dragoncon.org/'
 
     def __init__(self, interval=1):
-        self._log = settings.get_logger(__name__)
+        self._log = logging.getLogger(__name__)
         self._site_main = None
         self.dates_selector = '.region-countdown > div > h2'
         self.interval = interval
@@ -123,6 +125,7 @@ class DragonCon(object):
             log.warning(w)
         coroutines.monkey_patch()
         log.debug('gevent monkey patching done')
+
         try:
             log.debug('fetching event info...')
             dcstr = '{0}'.format(self.event_info)
@@ -131,7 +134,7 @@ class DragonCon(object):
                 log.debug('info only; terminating')
                 return True
             log.debug('spawning tasks...')
-            hotels = coroutines.monitor_room_availability(
+            hotels = coroutines.check_room_availability(
                 self.checkin,
                 self.checkout
             )

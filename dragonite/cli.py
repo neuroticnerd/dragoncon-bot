@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from __future__ import division, print_function
 
 import click
+import logging
 
-from .dragoncon import DragonCon
 from .conf import settings
 from .constants import DRAGONITE_ASCII
+from .dragoncon import DragonCon
 
 
 @click.group(invoke_without_command=True)
@@ -41,6 +41,11 @@ from .constants import DRAGONITE_ASCII
     help='Set the max number of tries to find room availability.'
 )
 @click.option(
+    '-n', '--nodb', 'nodb',
+    is_flag=True, default=False,
+    help='Prevents Dragonite from attempting to store any info in a database.'
+)
+@click.option(
     '-s', '--simple', 'simple',
     is_flag=True, default=False,
     help='Prevents Dragonite from logging extraneous things like ASCII art.'
@@ -53,20 +58,24 @@ from .constants import DRAGONITE_ASCII
 @click.version_option(message='%(prog)s %(version)s')
 @click.pass_context
 def dragonite(
-    context, cache, debug, info, loglevel, max_attempts, simple, verbose
+    context, cache, debug, info, loglevel, max_attempts, nodb, simple, verbose
 ):
     # CLI options/args override defaults and env vars
-    settings.use_cache = cache
-    settings.debug = debug
-    settings.info = info
-    settings.loglevel = loglevel
+    options = {
+        'cache': cache,
+        'debug': debug,
+        'info': info,
+        'loglevel': loglevel,
+        'simple': simple,
+        'verbose': verbose,
+        'nodb': nodb,
+    }
     if max_attempts is not None:
-        settings.max_attempts = max_attempts
-    settings.simple = simple
-    settings.verbose = verbose
+        options['max_attempts'] = max_attempts
+    settings.configure(**options)
     dragoncon_bot = DragonCon()
     context.obj = dragoncon_bot
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
     log.debug(settings)
     log.debug('subcommand=\'{0}\''.format(context.invoked_subcommand))
     if not settings.simple:
@@ -93,7 +102,7 @@ def dragonite(
 )
 @click.pass_context
 def rooms(context, max_attempts):
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
     if max_attempts != 1:
         log.warning('max attempts is not 1! ({0})'.format(max_attempts))
     settings.max_attempts = max_attempts
@@ -112,7 +121,7 @@ def test(context, message):
     def get_cookies_dict():
         return {'test-cookie': 'some stupid value'}
     from dragonite.scrapers.base import ScrapeResults
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
     settings.debug = True
     if message is not None:
         settings.inject_message = message

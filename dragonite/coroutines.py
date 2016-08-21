@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import gevent.monkey
 import gevent
+import logging
 import timeit
 
 from armory.gevent import patch_gevent_hub
@@ -10,14 +11,21 @@ from decimal import Decimal
 from gevent.pool import Group, Pool
 from gevent.queue import Queue
 
-from dragonite import scrapers
-from dragonite.conf import settings
+from . import beaker, scrapers
+from .conf import settings
 
 
 pool_size = 5
 processors = Pool(pool_size)
 result_queue = Queue()
 action_queue = Queue()
+invocation = None
+
+
+def monkey_patch():
+    patch_gevent_hub()
+    gevent.monkey.patch_all()
+    return True
 
 
 class CrawlerGroup(Group):
@@ -29,7 +37,7 @@ class CrawlerGroup(Group):
 
 
 def _monitor_rooms_old(scraper):
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
     log.info('monitoring {0} room availability...'.format(scraper.friendly))
     max_attempts = settings.max_attempts
     iteration = 0
@@ -50,37 +58,44 @@ def _monitor_rooms_old(scraper):
 
 
 def _monitor_rooms(scraper):
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
     log.info('checking {0} room availability...'.format(scraper.friendly))
     max_attempts = settings.max_attempts
     iteration = 0
+    previous = None
+    session = beaker.create_session() if settings.use_db else None
     while max_attempts == 0 or iteration < max_attempts:
+        if max_attempts != 0:
+            previous = timeit.default_timer()
         try:
             result = scraper()
             result.evaluate()
 
-            if result.post_process:
-                selector = (
-                    '#content-container > #main-col > '
-                    '#rates_and_rooms_container'
-                )
-                content = result.dom.body.select(selector)
-                # log.debug(content[0].prettify())
-                # log.debug(result.dom.body.select('#room_type_container')[0].prettify())
+            if session:
+                entry = beaker.ScrapeResultsEntry()
+                entry.hotel = result.parent.name
+                entry.available = result.available
+                session.add(entry)
+                session.commit()
+                result.entry = entry
+
             if result.available:
                 log.info('{0}: AVAILABILITY FOUND'.format(scraper.friendly))
                 action_queue.put(result)
             else:
                 log.info('{0}: UNAVAILABLE'.format(scraper.friendly))
-            gevent.sleep(0.1)
         except:
             raise
         iteration += 1
-    return '{0}'.format
+        if max_attempts != 0:
+            elapsed = round(Decimal(timeit.default_timer() - previous), 4)
+            sleeptime = max(0.1, (settings.interval - elapsed))
+            gevent.sleep(sleeptime)
+    return '{0}'.format(scraper.name)
 
 
 def _scrape_processor():
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
     result = result_queue.get()
     log.debug('_scrape_processor: {0}'.format(result))
     result.evaluate()
@@ -107,7 +122,8 @@ def _manage_processor_pool(crawlers):
 
 
 def _action_processor():
-    log = settings.get_logger(__name__)
+    log = logging.getLogger(__name__)
+
     with settings.comm as gateway:
         for action in action_queue:
             log.info('processing notifications for {0}'.format(
@@ -115,12 +131,22 @@ def _action_processor():
             ))
             gateway.notify(action)
             log.debug('_action_processor: {0}'.format(action))
+
     return True
 
 
-def monitor_room_availability(start, end):
-    log = settings.get_logger(__name__)
+def check_room_availability(start, end):
+    log = logging.getLogger(__name__)
     log.debug('spawning room availability monitors')
+    if settings.use_db:
+        global invocation
+        beaker.init_database()
+        session = beaker.create_session()
+        invocation = beaker.Invocation()
+        session.add(invocation)
+        session.commit()
+        log.info('invocation = {0}'.format(invocation.uuid))
+
     hotel_scrapers = scrapers.get_scrapers(start, end)
     crawlers = CrawlerGroup()
     for scraper in hotel_scrapers:
@@ -128,24 +154,17 @@ def monitor_room_availability(start, end):
     manager = gevent.spawn(_manage_processor_pool, crawlers)
     mailman = gevent.spawn(_action_processor)
     crawlers.join()
+
     if not result_queue.empty():
         manager.join(timeout=10)
         processors.kill()
+
     if not manager.ready():
         manager.kill()
+
     action_queue.put(StopIteration)
     mailman.join(timeout=10)
     if not mailman.ready():
         mailman.kill()
+
     return crawlers
-
-
-def monkey_patch():
-    patch_gevent_hub()
-    gevent.monkey.patch_all()
-    return True
-
-
-def killalltasks():
-    # raise NotImplementedError()
-    pass

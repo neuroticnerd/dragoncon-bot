@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import io
 import logging
+import logging.config
 import sys
 
 from collections import OrderedDict
@@ -14,10 +15,58 @@ from armory.serialize import jsonify, jsonexpand
 from .comm import CommProxy
 
 if (sys.version_info > (3, 0)):
-    # FileNotFoundError is built-in in Python 3
+    # FileNotFoundError is a built-in for Python 3
     pass
 else:
     FileNotFoundError = (IOError, OSError)
+
+LOGGING_VERBOSITY_DEFAULT = 'levelname'
+LOGGING_LEVEL_DEFAULT = 'INFO'
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '%(message)s',
+        },
+        'levelname': {
+            'format': '[%(levelname)s] %(message)s',
+        },
+        'normal': {
+            'format': '[%(levelname)s] %(name)s:%(lineno)d  %(message)s',
+        },
+        'verbose': {
+            'format': (
+                '[%(levelname)s] %(name)s:%(funcName)s:%(lineno)d  %(message)s'
+            ),
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'stream': sys.stdout,
+            'formatter': LOGGING_VERBOSITY_DEFAULT,
+        },
+    },
+    'loggers': {
+        '': {
+            'level': LOGGING_LEVEL_DEFAULT,
+            'handlers': ['console'],
+            'propagate': False,
+        },
+        'dragonite': {
+            'level': LOGGING_LEVEL_DEFAULT,
+            'handlers': ['console'],
+            'propagate': False,
+        },
+        'requests': {
+            'level': 'WARNING',
+            'handlers': ['console'],
+            'propagate': False,
+        }
+    },
+}
 
 
 class DragoniteCache(object):
@@ -54,20 +103,16 @@ class DragoniteCache(object):
 
 
 class DragoniteConfig(object):
-    levels = {
-        'debug': logging.DEBUG,
-        'info': logging.INFO,
-        'warn': logging.WARNING,
-        'warning': logging.WARNING,
-        'error': logging.ERROR,
-        'critical': logging.CRITICAL,
-    }
     fmt_long = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s'
     fmt_short = '%(message)s'
     fmt_date = '%Y-%m-%d %H:%M:%S'
     MAX_PRICE = 300
 
     def __init__(self, **options):
+        if options:
+            self.setup(**options)
+
+    def configure(self, **options):
         self._warnings = []
         self._logconf = {}
         self.env = Environment({
@@ -77,21 +122,25 @@ class DragoniteConfig(object):
         ll = options.get('loglevel', None)
         if ll is None:
             try:
-                ll = self.env('DRAGONITE_LOGLEVEL')
-                self.loglevel = self.levels[ll.lower()]
+                self.loglevel = self.env('DRAGONITE_LOGLEVEL').upper()
             except KeyError:
                 errmsg = 'ignoring env var {0} with invalid value of {1}'
                 self._warnings.append(errmsg.format('DRAGONITE_LOGLEVEL', ll))
-                self.loglevel = logging.INFO
+                self.loglevel = 'INFO'
         else:
             try:
-                self.loglevel = self.levels[ll.lower()]
+                self.loglevel = ll.upper()
             except KeyError:
                 errmsg = 'ignoring option loglevel with invalid value of {0}'
                 self._warnings.append(errmsg.format(ll))
-                self.loglevel = logging.INFO
+                self.loglevel = 'INFO'
 
+        LOGGING_CONFIG['loggers']['']['level'] = self.loglevel
+        LOGGING_CONFIG['loggers']['dragonite']['level'] = self.loglevel
         self.verbose = bool(options.get('verbose', False))
+        if self.verbose:
+            LOGGING_CONFIG['handlers']['console']['formatter'] = 'normal'
+        logging.config.dictConfig(LOGGING_CONFIG)
 
         cc = options.get('cache', None)
         if cc is None:
@@ -104,6 +153,7 @@ class DragoniteConfig(object):
         self.debug = options.get('debug', False)
         self.info = options.get('info', True)
         self.simple = options.get('simple', False)
+        self.nodb = options.get('nodb', False)
 
         self.comm = CommProxy(settings=self)
 
@@ -115,46 +165,8 @@ class DragoniteConfig(object):
 
     def __str__(self):
         return '{0}'.format({
-            'loglevel': self.loglevelname,
             'use_cache': self.use_cache,
         })
-
-    def get_logger(self, logname, loglevel=None):
-        """https://gist.github.com/neuroticnerd/7c60d61c8d9d9716f50d"""
-        conf_once = self._logconf.get(logname, True)
-        logger = logging.getLogger(logname)
-        if conf_once:
-            logger.propagate = False
-            ll = self.loglevel if loglevel is None else loglevel
-            logger.setLevel(ll)
-            msgfmt = self.fmt_long if self.verbose else self.fmt_short
-            formatter = logging.Formatter(fmt=msgfmt, datefmt=self.fmt_date)
-            handler = logging.StreamHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            self._logconf[logname] = False
-        return logger
-
-    @property
-    def loglevel(self):
-        if not hasattr(self, '_loglevel'):
-            self._loglevel = self.levels['info']
-        return self._loglevel
-
-    @loglevel.setter
-    def loglevel(self, value):
-        if value not in self.levels.values():
-            try:
-                self._loglevel = self.levels[value]
-            except KeyError:
-                errmsg = '{0} is not a valid logging level!'
-                raise ValueError(errmsg.format(value))
-        else:
-            self._loglevel = value
-
-    @property
-    def loglevelname(self):
-        return logging.getLevelName(self.loglevel)
 
     @property
     def sms_enabled(self):
@@ -176,12 +188,17 @@ class DragoniteConfig(object):
     def checkout(self):
         return self.cache.get('checkout', None)
 
+    @property
+    def use_db(self):
+        return (not self.nodb)
+
     def dumps(self, pretty=False):
         config = OrderedDict()
         config['debug'] = self.debug
         config['info'] = self.info
         config['simple'] = self.simple
         config['use_cache'] = self.use_cache
+        config['use_db'] = self.use_db
         config['max_attempts'] = self.max_attempts
         config['max_price'] = self.max_price
         config['checkin'] = self.checkin

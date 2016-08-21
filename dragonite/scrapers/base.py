@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-from ..conf import settings
+import logging
 
 
 class ScrapeResults(object):
@@ -44,7 +44,7 @@ class HostHotelScraper(object):
     msgfmt = '{name}:rooms  {msg}'
 
     def __init__(self, start, end, numppl=4, numrooms=1):
-        self.log = settings.get_logger(__name__)
+        self.log = logging.getLogger(__name__)
         self.start = start
         self.end = end
         self.numppl = numppl

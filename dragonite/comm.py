@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import io
 import json
+import logging
 import uuid
 
 from collections import OrderedDict
@@ -27,7 +28,7 @@ class CommProxy(object):
         self.send_sms = self.conf.sms_enabled
         self.send_email = self.conf.email_enabled
         self._gateway = None
-        log = self.conf.get_logger(__name__)
+        log = logging.getLogger(__name__)
 
         try:
             with io.open(config, 'r', encoding='utf-8') as f:
@@ -89,7 +90,7 @@ class CommProxy(object):
         NOTE: SMS messages can only be up to 160 characters; it needs to
         use an MMS gateway if it is longer than that limit.
         """
-        log = self.conf.get_logger(__name__)
+        log = logging.getLogger(__name__)
         alert_uuid = uuid.uuid4().hex
         log.info('UUID={0}'.format(alert_uuid))
 

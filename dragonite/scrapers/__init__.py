@@ -17,3 +17,13 @@ def get_scrapers(start, end):
         MarriottAvailability(start, end),
         MarriottDiscountAvailability(start, end),
     )
+
+
+def get_host_names():
+    return (
+        HiltonAvailability.name,
+        HyattAvailability.name,
+        HyattPasskeyAvailability.name,
+        MarriottAvailability.name,
+        MarriottDiscountAvailability.name,
+    )

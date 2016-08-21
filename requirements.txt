@@ -11,3 +11,4 @@ fuzzywuzzy>=0.7.0
 click>=5.1
 jinja2>=2.8
 simplejson>=3.8.2
+SQLAlchemy>=1.1.0b3
