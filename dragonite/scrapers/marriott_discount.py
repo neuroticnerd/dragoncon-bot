@@ -87,7 +87,6 @@ class MarriottDiscountAvailability(HostHotelScraper):
 
     def parse(self, result, **kwargs):
         log = self.log
-        log.debug([result._response.url] + result._response.history)
         unavailable = (
             'Sorry, there are no rooms remaining in the group block for a '
             'particular night. Please contact the Hotel directly for '

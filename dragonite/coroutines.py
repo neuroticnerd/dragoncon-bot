@@ -1,13 +1,14 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import gevent.monkey
-import gevent
 import logging
 import timeit
+from decimal import Decimal
 
 from armory.gevent import patch_gevent_hub
-from decimal import Decimal
+
+import gevent
+import gevent.monkey
 from gevent.pool import Group, Pool
 from gevent.queue import Queue
 
@@ -63,7 +64,7 @@ def _monitor_rooms(scraper):
     max_attempts = settings.max_attempts
     iteration = 0
     previous = None
-    session = beaker.create_session() if settings.use_db else None
+
     while max_attempts == 0 or iteration < max_attempts:
         if max_attempts != 0:
             previous = timeit.default_timer()
@@ -71,12 +72,24 @@ def _monitor_rooms(scraper):
             result = scraper()
             result.evaluate()
 
-            if session:
-                entry = beaker.ScrapeResultsEntry()
-                entry.hotel = result.parent.name
-                entry.available = result.available
+            if settings.use_db:
+                session = beaker.create_session()
+                entry = beaker.ScrapeResultsEntry(
+                    hotel=result.parent.name,
+                    available=result.available,
+                    post_process=result.post_process,
+                    error=result.error,
+                    raw=result.raw,
+                    history='{0}'.format(
+                        [
+                            r.url for r in result.response.history
+                        ] + [result.response.url]
+                    ),
+                    cookies='{0}'.format(result.session.cookies.get_dict()),
+                )
                 session.add(entry)
                 session.commit()
+                entry.session = session
                 result.entry = entry
 
             if result.available:
@@ -131,6 +144,16 @@ def _action_processor():
             ))
             gateway.notify(action)
             log.debug('_action_processor: {0}'.format(action))
+            if hasattr(action, 'entry'):
+                entry = action.entry
+                session = entry.session
+                entry.processed = True
+                session.add(entry)
+                session.commit()
+                log.debug('entry.processed = {0}'.format(
+                    action.entry.processed
+                ))
+                session.close()
 
     return True
 
@@ -138,11 +161,12 @@ def _action_processor():
 def check_room_availability(start, end):
     log = logging.getLogger(__name__)
     log.debug('spawning room availability monitors')
+
     if settings.use_db:
         global invocation
         beaker.init_database()
         session = beaker.create_session()
-        invocation = beaker.Invocation()
+        invocation = beaker.Invocation(**settings.dict())
         session.add(invocation)
         session.commit()
         log.info('invocation = {0}'.format(invocation.uuid))

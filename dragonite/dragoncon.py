@@ -1,16 +1,18 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import dateutil.parser
 import logging
-import requests
-
 from collections import OrderedDict
 
-from bs4 import BeautifulSoup
-from unidecode import unidecode
-
 from armory.serialize import jsonify
+
+from bs4 import BeautifulSoup
+
+import dateutil.parser
+
+import requests
+
+from unidecode import unidecode
 
 from . import coroutines
 from .conf import settings

@@ -5,12 +5,12 @@ import io
 import logging
 import logging.config
 import sys
-
 from collections import OrderedDict
-from dateutil.parser import parse
 
 from armory.environ import Environment
-from armory.serialize import jsonify, jsonexpand
+from armory.serialize import jsonexpand, jsonify
+
+from dateutil.parser import parse
 
 from .comm import CommProxy
 
@@ -192,7 +192,7 @@ class DragoniteConfig(object):
     def use_db(self):
         return (not self.nodb)
 
-    def dumps(self, pretty=False):
+    def dict(self):
         config = OrderedDict()
         config['debug'] = self.debug
         config['info'] = self.info
@@ -204,12 +204,13 @@ class DragoniteConfig(object):
         config['checkin'] = self.checkin
         config['checkout'] = self.checkout
         config['loglevel'] = self.loglevel
-        config['loglevelname'] = self.loglevelname
         config['verbose'] = self.verbose
-        config['interval'] = self.interval
         config['sms_enabled'] = self.sms_enabled
         config['email_enabled'] = self.email_enabled
-        return jsonify(config, pretty=pretty)
+        return config
+
+    def dumps(self, pretty=False):
+        return jsonify(self.dict(), pretty=pretty)
 
 
 settings = DragoniteConfig()
