@@ -1,12 +1,16 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import requests
+import logging
 
 from bs4 import BeautifulSoup
 
+import requests
+
 from .base import HostHotelScraper
 from ..conf import settings
+
+log = logging.getLogger(__name__)
 
 
 class MarriottAvailability(HostHotelScraper):
@@ -23,7 +27,6 @@ class MarriottAvailability(HostHotelScraper):
     address = '265 Peachtree Center Avenue Atlanta, GA 30303'
 
     def scrape(self, result, **kwargs):
-        log = self.log
         rtimeout = kwargs.get('timeout', 5)
         base = 'https://www.marriott.com'
         home = '{0}/hotels/travel/atlmq-atlanta-marriott-marquis/'.format(base)
@@ -51,13 +54,13 @@ class MarriottAvailability(HostHotelScraper):
         }
         try:
             s = requests.Session()
-            result._session = s
+            result.session = s
             r = s.get(home, timeout=rtimeout)
             r = s.get(search, params=params, timeout=rtimeout)
-            result._response = r
+            result.response = r
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
-            result._dom = BeautifulSoup(r.text, 'lxml')
-            result._raw = r.text
+            result.dom = BeautifulSoup(r.text, 'lxml')
+            result.raw = r.text
         except requests.exceptions.ReadTimeout:
             log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
@@ -66,14 +69,15 @@ class MarriottAvailability(HostHotelScraper):
         return result
 
     def parse(self, result, **kwargs):
-        log = self.log
         unavailable = 'Sorry, currently there are no rooms available at this '
         unavailable += 'property for the dates you selected. '
         unavailable += 'Please try your search again'
         selector = '#popover-panel #no-rooms-available'
+        not_available = False
+
         norooms = result.dom.body.select(selector)
         if norooms:
-            result.unavailable = True
+            not_available = True
             result.post_process = False
             log.debug(self.msg('UNAVAILABLE'))
             norooms = norooms[0].get_text().strip()
@@ -81,7 +85,7 @@ class MarriottAvailability(HostHotelScraper):
                 errmsg = 'norooms present but unavailable not found'
                 log.error(self.msg(errmsg))
 
-        if not result.unavailable:
+        if not not_available:
             selector = (
                 'div.results-container div.room-rate-results '
                 'div.rate-price .t-price'
@@ -94,10 +98,10 @@ class MarriottAvailability(HostHotelScraper):
                 if lowest is None or price < lowest:
                     lowest = price
             if lowest is not None and lowest > settings.max_price:
-                result.unavailable = True
+                not_available = True
                 msg = 'availability found but price too high ({0})'
                 log.info(msg.format(lowest))
 
-        result.available = not result.unavailable
+        result.available = not not_available
 
         return result

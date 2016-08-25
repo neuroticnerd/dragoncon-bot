@@ -140,7 +140,7 @@ class Invocation(Model):
         return value
 
 
-class ScrapeResultsEntry(Model):
+class ScrapeResultEntry(Model):
     HOST_HOTELS = get_host_names()
 
     invocation_id = Column(types.Integer, ForeignKey('invocation.id'))

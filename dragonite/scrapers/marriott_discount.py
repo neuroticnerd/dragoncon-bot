@@ -1,11 +1,15 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import requests
+import logging
 
 from bs4 import BeautifulSoup
 
+import requests
+
 from .base import HostHotelScraper
+
+log = logging.getLogger(__name__)
 
 
 class MarriottDiscountAvailability(HostHotelScraper):
@@ -22,7 +26,6 @@ class MarriottDiscountAvailability(HostHotelScraper):
     address = '265 Peachtree Center Avenue Atlanta, GA 30303'
 
     def scrape(self, result, **kwargs):
-        log = self.log
         rtimeout = kwargs.get('timeout', 5)
         base = 'https://www.marriott.com'
         ratelist = '{0}/meetings/rateListMenu.mi'.format(base)
@@ -52,32 +55,16 @@ class MarriottDiscountAvailability(HostHotelScraper):
             'populateTodateFromFromDate': 'true',
             'single-search-date-format': 'mm/dd/yy',
             'weekDays': 'S,M,T,W,T,F,S',
-
-            # 'accountId': '',
-            # 'corporateCode': '',
-            # 'flexibleDateSearch': 'false',
-            # 'flushSelectedRoomType': 'true',
-            # 'groupCode': '',
-            # 'includeNearByLocation': 'false',
-            # 'isHwsGroupSearch': 'true',
-            # 'isSearch': 'false',
-            # 'marriottRewardsNumber': '',
-            # 'miniStoreAvailabilitySear...': 'false',
-            # 'numberOfGuests': self.numppl,
-            # 'numberOfNights': 1,
-            # 'numberOfRooms': 1,
-            # 'propertyCode': 'atlmq',
-            # 'useRewardsPoints': 'false',
         }
         try:
             s = requests.Session()
-            result._session = s
+            result.session = s
             r = s.get(self.link, timeout=rtimeout)
             r = s.post(ratelist, params=params, timeout=rtimeout)
-            result._response = r
+            result.response = r
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
-            result._dom = BeautifulSoup(r.text, 'lxml')
-            result._raw = r.text
+            result.dom = BeautifulSoup(r.text, 'lxml')
+            result.raw = r.text
         except requests.exceptions.ReadTimeout:
             log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
@@ -86,16 +73,17 @@ class MarriottDiscountAvailability(HostHotelScraper):
         return result
 
     def parse(self, result, **kwargs):
-        log = self.log
         unavailable = (
             'Sorry, there are no rooms remaining in the group block for a '
             'particular night. Please contact the Hotel directly for '
             'assistance.'
         )
         selector = '#popover-panel #unsuccessful-sell-popover'
+        not_available = False
+
         norooms = result.dom.body.select(selector)
         if norooms:
-            result.unavailable = True
+            not_available = True
             result.post_process = False
             log.debug(self.msg('UNAVAILABLE'))
             norooms = norooms[0].get_text().strip()
@@ -103,6 +91,6 @@ class MarriottDiscountAvailability(HostHotelScraper):
                 errmsg = 'norooms present but unavailable not found'
                 log.error(self.msg(errmsg))
 
-        result.available = not result.unavailable
+        result.available = not not_available
 
         return result

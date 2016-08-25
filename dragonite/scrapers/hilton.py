@@ -1,12 +1,17 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import requests
+import logging
 
 from bs4 import BeautifulSoup
+
 from fuzzywuzzy import fuzz
 
+import requests
+
 from .base import HostHotelScraper
+
+log = logging.getLogger(__name__)
 
 
 class HiltonAvailability(HostHotelScraper):
@@ -17,7 +22,6 @@ class HiltonAvailability(HostHotelScraper):
     address = '255 Courtland Street NE Atlanta, GA 30303'
 
     def scrape(self, result, **kwargs):
-        log = self.log
         rtimeout = kwargs.get('timeout', 10)
         baseurl = 'http://www3.hilton.com'
         home = '{0}/en/hotels/georgia/hilton-atlanta-ATLAHHH/index.html'
@@ -66,13 +70,13 @@ class HiltonAvailability(HostHotelScraper):
             # the post will redirect a number of times due to how their
             # site processes the search requests
             s = requests.Session()
-            result._session = s
+            result.session = s
             r = s.get(home, timeout=rtimeout)
             r = s.post(search, params=params, timeout=rtimeout)
-            result._response = r
+            result.response = r
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
-            result._dom = BeautifulSoup(r.text, 'lxml')
-            result._raw = r.text
+            result.dom = BeautifulSoup(r.text, 'lxml')
+            result.raw = r.text
         except requests.exceptions.ReadTimeout:
             log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
@@ -81,22 +85,23 @@ class HiltonAvailability(HostHotelScraper):
         return result
 
     def parse(self, result, **kwargs):
-        log = self.log
         unavailable = 'There are no rooms available for - at Hilton Atlanta'
         alert_selector = 'div#main_content div#main div.alertBox p'
         alertps = result.dom.body.select(alert_selector)
         alerts = []
+        not_available = False
+
         for alertp in alertps:
             errtext = alertp.findAll(text=True, recursive=False)
             errtext = [t.strip() for t in errtext if t.strip() != '']
             alerts.append(' '.join(errtext))
+
         for error in alerts:
             ratio = fuzz.ratio(error, unavailable)
             if ratio > 75:
-                result.unavailable = True
-                result.post_process = False
+                not_available = True
                 log.debug(self.msg('UNAVAILABLE ({0}%)'.format(ratio)))
 
-        result.available = not result.unavailable
+        result.available = not not_available
 
         return result

@@ -1,11 +1,15 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import requests
+import logging
 
 from bs4 import BeautifulSoup
 
+import requests
+
 from .base import HostHotelScraper
+
+log = logging.getLogger(__name__)
 
 
 class HyattAvailability(HostHotelScraper):
@@ -16,7 +20,6 @@ class HyattAvailability(HostHotelScraper):
     address = '265 Peachtree Street NE Atlanta, GA 30303'
 
     def scrape(self, result, *args, **kwargs):
-        log = self.log
         # a large timeout is required because their redirects take a very
         # long time to process and actually return a response
         rtimeout = kwargs.get('timeout', 8)
@@ -48,13 +51,13 @@ class HyattAvailability(HostHotelScraper):
             # the request will redirect a number of times due to
             # how their site processes the search requests
             s = requests.Session()
-            result._session = s
+            result.session = s
             r = result.session.get(baseurl, timeout=rtimeout)
             r = result.session.get(searchurl, params=params, timeout=rtimeout)
-            result._response = r
+            result.response = r
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
-            result._dom = BeautifulSoup(r.text, 'lxml')
-            result._raw = r.text
+            result.dom = BeautifulSoup(r.text, 'lxml')
+            result.raw = r.text
         except requests.exceptions.ReadTimeout:
             log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
@@ -63,32 +66,32 @@ class HyattAvailability(HostHotelScraper):
         return result
 
     def parse(self, result, **kwargs):
-        log = self.log
         search_text = (
             'The hotel is not available for your requested travel dates.'
             ' It is either sold out or not yet open for reservations.'
         )
+        not_available = False
 
         errors = result.dom.body.select('.error-block #msg .error')
         for error in errors:
-            if result.unavailable is True:
+            if not_available is True:
                 break
             for text in error.findAll(text=True, recursive=False):
                 if search_text in text.strip():
-                    result.unavailable = True
+                    not_available = True
                     result.post_process = False
                     log.debug(self.msg('UNAVAILABLE'))
                     break
 
-        if not errors and search_text in result._raw:
+        if not errors and search_text in result.raw:
             errmsg = 'potential invalid detection of availability!'
             log.error(self.msg(errmsg))
             raise ValueError(errmsg)
 
-        if not result.unavailable:
+        if not not_available:
             result.post_process = True
             log.debug(self.msg('post processing required'))
 
-        result.available = not result.unavailable
+        result.available = not not_available
 
         return self

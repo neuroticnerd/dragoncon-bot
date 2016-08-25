@@ -1,11 +1,15 @@
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import requests
+import logging
 
 from bs4 import BeautifulSoup
 
+import requests
+
 from .base import HostHotelScraper
+
+log = logging.getLogger(__name__)
 
 
 class HyattPasskeyAvailability(HostHotelScraper):
@@ -16,7 +20,6 @@ class HyattPasskeyAvailability(HostHotelScraper):
     address = '265 Peachtree Street NE Atlanta, GA 30303'
 
     def scrape(self, result, **kwargs):
-        log = self.log
         rtimeout = kwargs.get('timeout', 8)
         hyatturl = 'https://aws.passkey.com/event/14179207/owner/323'
         baseurl = '{0}/home'.format(hyatturl)
@@ -48,7 +51,7 @@ class HyattPasskeyAvailability(HostHotelScraper):
                 ),
                 'Host': 'aws.passkey.com',
             })
-            result._session = s
+            result.session = s
             r = s.get(baseurl, timeout=rtimeout)
             r = s.post(groupurl, data=groupid, timeout=rtimeout)
             s.headers.update({
@@ -56,10 +59,10 @@ class HyattPasskeyAvailability(HostHotelScraper):
             })
             r = s.post(searchurl, data=payload, timeout=rtimeout)
 
-            result._response = r
+            result.response = r
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
-            result._dom = BeautifulSoup(r.text, 'lxml')
-            result._raw = r.text
+            result.dom = BeautifulSoup(r.text, 'lxml')
+            result.raw = r.text
         except requests.exceptions.ReadTimeout:
             log.error(self.msg('TIMEOUT'))
         except requests.exceptions.ConnectionError:
@@ -68,33 +71,33 @@ class HyattPasskeyAvailability(HostHotelScraper):
         return result
 
     def parse(self, result, **kwargs):
-        log = self.log
         if 'maintenance/index.html' in result.response.url:
             result.error = True
             return result
+        not_available = False
 
         search_text = 'No lodging matches your search criteria.'
         selector = '#main .shell #content .message-room'
         messages = result.dom.body.select(selector)
         for message in messages:
-            if result.unavailable is True:
+            if not_available is True:
                 break
             for text in message.findAll(text=True, recursive=False):
                 if search_text in text.strip():
-                    result.unavailable = True
+                    not_available = True
                     result.post_process = False
                     log.debug(self.msg('UNAVAILABLE'))
                     break
 
-        if not messages and search_text in result._raw:
+        if not messages and search_text in result.raw:
             errmsg = 'potential invalid detection of availability!'
             log.error(self.msg(errmsg))
             raise ValueError(errmsg)
 
-        if not result.unavailable:
+        if not not_available:
             result.post_process = True
             log.debug(self.msg('post processing required'))
 
-        result.available = not result.unavailable
+        result.available = not not_available
 
         return result

@@ -1,40 +1,16 @@
-# -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-
-import logging
 
 
 class ScrapeResults(object):
     def __init__(self, parent):
-        self._parent = parent
-        self._raw = None
-        self._dom = None
-        self._session = None
-        self._response = None
+        self.parent = parent
+        self.raw = None
+        self.dom = None
+        self.session = None
+        self.response = None
         self.available = False
-        self.unavailable = False
         self.post_process = False
         self.error = False
-
-    @property
-    def parent(self):
-        return self._parent
-
-    @property
-    def raw(self):
-        return self._raw
-
-    @property
-    def dom(self):
-        return self._dom
-
-    @property
-    def session(self):
-        return self._session
-
-    @property
-    def response(self):
-        return self._response
 
     def evaluate(self):
         self.parent.parse(self)
@@ -44,7 +20,6 @@ class HostHotelScraper(object):
     msgfmt = '{name}:rooms  {msg}'
 
     def __init__(self, start, end, numppl=4, numrooms=1):
-        self.log = logging.getLogger(__name__)
         self.start = start
         self.end = end
         self.numppl = numppl

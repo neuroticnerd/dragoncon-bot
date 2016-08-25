@@ -103,7 +103,7 @@ def _monitor_rooms(scraper):
 
         if settings.use_db:
             session = beaker.create_session()
-            entry = beaker.ScrapeResultsEntry(
+            entry = beaker.ScrapeResultEntry(
                 hotel=result.parent.name,
                 available=result.available,
                 post_process=result.post_process,
