@@ -14,6 +14,7 @@ from gevent.queue import Queue
 
 from . import beaker, scrapers
 from .conf import settings
+from .utils import LogAndForget
 
 
 pool_size = 5
@@ -147,17 +148,23 @@ def _result_processor():
         for result in result_queue:
             log.debug('processing {0} result'.format(result.parent.friendly))
 
-            if result.available:
-                gateway.notify(result)
-
+            entry = None
             if hasattr(result, 'entry'):
                 entry = result.entry
                 session = beaker.object_session(entry)
-                if result.available:
+
+            if result.available and entry is not None:
+                with LogAndForget('issue encountered notifying with uuid:'):
+                    gateway.notify(result, entry.uuid)
                     entry.processed = True
                     session.add(entry)
                     session.commit()
                     log.debug('entry.processed = {0}'.format(entry.processed))
+            elif result.available:
+                with LogAndForget('issue encountered notifying:'):
+                    gateway.notify(result)
+
+            if entry is not None:
                 session.close()
 
     return True

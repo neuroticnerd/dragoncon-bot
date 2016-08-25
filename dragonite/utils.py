@@ -1,22 +1,28 @@
-# -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from __future__ import division, print_function
 
-import timeit
-
-from decimal import Decimal
-from functools import wraps
+import logging
 
 
-def timed_function(func):
-    @wraps(func)
-    def timed_function_wrapper(*args, **kwargs):
-        time_start = timeit.default_timer()
-        result = func(*args, **kwargs)
-        elapsed = round(Decimal(timeit.default_timer() - time_start), 4)
-        if isinstance(result, AvailabilityResults):
-            result.elapsed = elapsed
-            return result
-        return AvailabilityResults(result, elapsed)
+class LogAndForget(object):
+    """ Log encountered exceptions without letting them propagate. """
+    def __init__(self, message=None, log=None):
+        self.message = message
+        if message is None:
+            self.message = ''
+        if not self.message.endswith('\n'):
+            self.message = self.message + '\n'
+        self.log = log
+        if self.log is None:
+            self.log = logging.getLogger(__name__)
 
-    return timed_function_wrapper
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if exc_value is not None:
+            import traceback
+            output = self.message + ''.join(traceback.format_exception(
+                exc_type, exc_value, exc_traceback
+            ))
+            self.log.error(output)
+        return True

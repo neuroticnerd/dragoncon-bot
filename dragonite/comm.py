@@ -7,13 +7,16 @@ import logging
 import uuid
 
 from collections import OrderedDict
-
-from armory.phone import phone
-from armory.serialize import jsonify
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+from armory.phone import phone
+from armory.serialize import jsonify
+
 from jinja2 import Environment, PackageLoader
+
+log = logging.getLogger(__name__)
 
 
 class CommProxy(object):
@@ -28,7 +31,6 @@ class CommProxy(object):
         self.send_sms = self.conf.sms_enabled
         self.send_email = self.conf.email_enabled
         self._gateway = None
-        log = logging.getLogger(__name__)
 
         try:
             with io.open(config, 'r', encoding='utf-8') as f:
@@ -63,8 +65,8 @@ class CommProxy(object):
         self.gateway = self._gateway.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.gateway.__exit__(exc_type, exc_value, traceback)
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.gateway.__exit__(exc_type, exc_value, exc_traceback)
         self.gateway = None
 
     @property
@@ -79,10 +81,14 @@ class CommProxy(object):
             return '***TEST*** ' + self._mms_subject
         return self._mms_subject
 
-    def notify(self, data_object):
+    def notify(self, data_object, ref_uuid=None):
         """
-        data_object should be an instance of
-        dragonite.scrapers.base.ScrapeResults
+        Sends SMS/MMS and email messages based on settings.
+
+        :param data_object: contains the results triggering the messages
+        :type data_object: dragonite.scrapers.base.ScrapeResults
+        :param ref_uuid: the UUID of the scrape for reference if needed
+        :type ref_uuid: uuid.UUID or a str UUID
 
         NOTE: SMS/MMS messages do not appear to work properly unless
         sent to the gateway as a multipart/mixed email.
@@ -90,9 +96,8 @@ class CommProxy(object):
         NOTE: SMS messages can only be up to 160 characters; it needs to
         use an MMS gateway if it is longer than that limit.
         """
-        log = logging.getLogger(__name__)
-        alert_uuid = uuid.uuid4().hex
-        log.info('UUID={0}'.format(alert_uuid))
+        alert_uuid = str(ref_uuid) if ref_uuid else uuid.uuid4().hex
+        log.debug('notify UUID={0}'.format(alert_uuid))
 
         template_variables = {
             'to_name': ', '.join(
