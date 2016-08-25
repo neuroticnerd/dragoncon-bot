@@ -142,10 +142,8 @@ class DragonCon(object):
             )
             log.debug([h.value for h in hotels])
         except KeyboardInterrupt:
-            coroutines.killalltasks()
             log.error('terminating program due to KeyboardInterrupt')
         except requests.exceptions.ConnectionError as e:
-            coroutines.killalltasks()
             log.debug('{0}'.format(e))
             log.error('internet connection error; aborting!')
         log.info('dragoncon bot exiting\n')

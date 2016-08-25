@@ -183,3 +183,7 @@ def create_session():
     session = _SESSION_FACTORY()
     log.debug('database session created.')
     return session
+
+
+def object_session(obj):
+    return _SESSION_FACTORY.object_session(obj)
