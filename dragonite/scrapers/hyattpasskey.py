@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 import requests
 
-from .base import HostHotelScraper
+from .base import HostHotelScraper, RequestsGuard
 
 log = logging.getLogger(__name__)
 
@@ -19,8 +19,7 @@ class HyattPasskeyAvailability(HostHotelScraper):
     link = 'https://atlanta.regency.hyatt.com/en/hotel/home.html'
     address = '265 Peachtree Street NE Atlanta, GA 30303'
 
-    def scrape(self, result, **kwargs):
-        rtimeout = kwargs.get('timeout', 8)
+    def scrape(self, result, rtimeout=8):
         hyatturl = 'https://aws.passkey.com/event/14179207/owner/323'
         baseurl = '{0}/home'.format(hyatturl)
         groupurl = '{0}/home/group'.format(hyatturl)
@@ -40,7 +39,7 @@ class HyattPasskeyAvailability(HostHotelScraper):
             'groupTypeId': 52445573,
         }
 
-        try:
+        with RequestsGuard(result, __name__):
             # there are all sorts of redirects involved here because of the way
             # the site works to make sure necessary cookies and such are set
             s = requests.Session()
@@ -51,7 +50,6 @@ class HyattPasskeyAvailability(HostHotelScraper):
                 ),
                 'Host': 'aws.passkey.com',
             })
-            result.session = s
             r = s.get(baseurl, timeout=rtimeout)
             r = s.post(groupurl, data=groupid, timeout=rtimeout)
             s.headers.update({
@@ -59,14 +57,12 @@ class HyattPasskeyAvailability(HostHotelScraper):
             })
             r = s.post(searchurl, data=payload, timeout=rtimeout)
 
-            result.response = r
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+
+            result.session = s
+            result.response = r
             result.dom = BeautifulSoup(r.text, 'lxml')
             result.raw = r.text
-        except requests.exceptions.ReadTimeout:
-            log.error(self.msg('TIMEOUT'))
-        except requests.exceptions.ConnectionError:
-            log.error(self.msg('CONNECTION ERROR'))
 
         return result
 

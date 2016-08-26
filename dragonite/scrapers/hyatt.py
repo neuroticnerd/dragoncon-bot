@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 import requests
 
-from .base import HostHotelScraper
+from .base import HostHotelScraper, RequestsGuard
 
 log = logging.getLogger(__name__)
 
@@ -19,10 +19,11 @@ class HyattAvailability(HostHotelScraper):
     link = 'https://atlanta.regency.hyatt.com/en/hotel/home.html'
     address = '265 Peachtree Street NE Atlanta, GA 30303'
 
-    def scrape(self, result, *args, **kwargs):
-        # a large timeout is required because their redirects take a very
-        # long time to process and actually return a response
-        rtimeout = kwargs.get('timeout', 8)
+    def scrape(self, result, rtimeout=8):
+        """
+        A large timeout is required because their redirects take a very
+        long time to process and actually return a response
+        """
         hyatturl = 'https://atlantaregency.hyatt.com'
         baseurl = '{hyatt}/en/hotel/home.html'.format(hyatt=hyatturl)
         searchurl = '{hyatt}/HICBooking'.format(hyatt=hyatturl)
@@ -47,21 +48,20 @@ class HyattAvailability(HostHotelScraper):
             'rooms': 1,
             'srcd': 'dayprop',
         }
-        try:
+
+        with RequestsGuard(result, __name__):
             # the request will redirect a number of times due to
             # how their site processes the search requests
             s = requests.Session()
-            result.session = s
-            r = result.session.get(baseurl, timeout=rtimeout)
-            r = result.session.get(searchurl, params=params, timeout=rtimeout)
-            result.response = r
+            r = s.get(baseurl, timeout=rtimeout)
+            r = s.get(searchurl, params=params, timeout=rtimeout)
+
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+
+            result.session = s
+            result.response = r
             result.dom = BeautifulSoup(r.text, 'lxml')
             result.raw = r.text
-        except requests.exceptions.ReadTimeout:
-            log.error(self.msg('TIMEOUT'))
-        except requests.exceptions.ConnectionError:
-            log.error(self.msg('CONNECTION ERROR'))
 
         return result
 

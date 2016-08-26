@@ -153,6 +153,7 @@ class ScrapeResultEntry(Model):
     available = Column(types.Boolean, default=False)
     processed = Column(types.Boolean, default=False)
     error = Column(types.Boolean, default=False)
+    traceback = Column(types.UnicodeText, nullable=True, default=None)
     post_process = Column(types.Boolean, default=False)
     raw = Column(types.UnicodeText)
     history = Column(types.UnicodeText)

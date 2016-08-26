@@ -6,7 +6,7 @@ from __future__ import division, print_function
 import io
 import re
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 
 PROJECT_MODULE = 'dragonite'
@@ -25,10 +25,10 @@ EXTRAS = {
         'pytest>=2.8.4',
         'coverage>=4.0.3',
     ),
-    'caching': (
-        'redis>=2.10.3',
-        'hiredis>=0.2.0',
-    ),
+    # 'caching': (
+    #     'redis>=2.10.3',
+    #     'hiredis>=0.2.0',
+    # ),
 }
 SCRIPTS = {
     "console_scripts": [

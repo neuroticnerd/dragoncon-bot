@@ -9,7 +9,7 @@ from fuzzywuzzy import fuzz
 
 import requests
 
-from .base import HostHotelScraper
+from .base import HostHotelScraper, RequestsGuard
 
 log = logging.getLogger(__name__)
 
@@ -21,8 +21,7 @@ class HiltonAvailability(HostHotelScraper):
     link = 'http://www.atlanta.hilton.com/'
     address = '255 Courtland Street NE Atlanta, GA 30303'
 
-    def scrape(self, result, **kwargs):
-        rtimeout = kwargs.get('timeout', 10)
+    def scrape(self, result, rtimeout=10):
         baseurl = 'http://www3.hilton.com'
         home = '{0}/en/hotels/georgia/hilton-atlanta-ATLAHHH/index.html'
         home = home.format(baseurl)
@@ -66,21 +65,20 @@ class HiltonAvailability(HostHotelScraper):
             'searchQuery': '',
             'searchType': 'PROP',
         }
-        try:
+
+        with RequestsGuard(result, __name__):
             # the post will redirect a number of times due to how their
             # site processes the search requests
             s = requests.Session()
-            result.session = s
             r = s.get(home, timeout=rtimeout)
             r = s.post(search, params=params, timeout=rtimeout)
-            result.response = r
+
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+
+            result.session = s
+            result.response = r
             result.dom = BeautifulSoup(r.text, 'lxml')
             result.raw = r.text
-        except requests.exceptions.ReadTimeout:
-            log.error(self.msg('TIMEOUT'))
-        except requests.exceptions.ConnectionError:
-            log.error(self.msg('CONNECTION ERROR'))
 
         return result
 

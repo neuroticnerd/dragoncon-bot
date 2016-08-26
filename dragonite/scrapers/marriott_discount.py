@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 import requests
 
-from .base import HostHotelScraper
+from .base import HostHotelScraper, RequestsGuard
 
 log = logging.getLogger(__name__)
 
@@ -25,8 +25,7 @@ class MarriottDiscountAvailability(HostHotelScraper):
     )
     address = '265 Peachtree Center Avenue Atlanta, GA 30303'
 
-    def scrape(self, result, **kwargs):
-        rtimeout = kwargs.get('timeout', 5)
+    def scrape(self, result, rtimeout=5):
         base = 'https://www.marriott.com'
         ratelist = '{0}/meetings/rateListMenu.mi'.format(base)
         params = {
@@ -56,19 +55,18 @@ class MarriottDiscountAvailability(HostHotelScraper):
             'single-search-date-format': 'mm/dd/yy',
             'weekDays': 'S,M,T,W,T,F,S',
         }
-        try:
+
+        with RequestsGuard(result, __name__):
             s = requests.Session()
-            result.session = s
             r = s.get(self.link, timeout=rtimeout)
             r = s.post(ratelist, params=params, timeout=rtimeout)
-            result.response = r
+
             log.debug(self.msg('[HTTP {0}]'.format(r.status_code)))
+
+            result.session = s
+            result.response = r
             result.dom = BeautifulSoup(r.text, 'lxml')
             result.raw = r.text
-        except requests.exceptions.ReadTimeout:
-            log.error(self.msg('TIMEOUT'))
-        except requests.exceptions.ConnectionError:
-            log.error(self.msg('CONNECTION ERROR'))
 
         return result
 

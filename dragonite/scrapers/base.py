@@ -1,7 +1,41 @@
 from __future__ import absolute_import, unicode_literals
 
+import logging
+import traceback
+
+from requests.exceptions import ConnectionError, ReadTimeout
+
+
+class RequestsGuard(object):
+
+    def __init__(self, result, logname=None):
+        self.log = logging.getLogger((logname if logname else __name__))
+        self.result = result
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        handled = False
+
+        if exc_value is not None:
+            self.result.error = True
+            self.result.traceback = ''.join(traceback.format_exception(
+                exc_type, exc_value, exc_traceback
+            ))
+
+            if issubclass(exc_type, ReadTimeout):
+                self.log.error(self.result.parent.msg('TIMEOUT'))
+                handled = True
+            elif issubclass(exc_type, ConnectionError):
+                self.log.error(self.result.parent.msg('CONNECTION ERROR'))
+                handled = True
+
+        return handled
+
 
 class ScrapeResults(object):
+
     def __init__(self, parent):
         self.parent = parent
         self.raw = None
@@ -11,9 +45,11 @@ class ScrapeResults(object):
         self.available = False
         self.post_process = False
         self.error = False
+        self.traceback = None
 
     def evaluate(self):
-        self.parent.parse(self)
+        if self.error is False:
+            self.parent.parse(self)
 
 
 class HostHotelScraper(object):

@@ -108,6 +108,7 @@ def _monitor_rooms(scraper):
                 available=result.available,
                 post_process=result.post_process,
                 error=result.error,
+                traceback=result.traceback,
                 raw=result.raw,
                 history='{0}'.format(
                     [
@@ -157,7 +158,6 @@ def _result_processor():
                 with LogAndForget('issue encountered notifying with uuid:'):
                     gateway.notify(result, entry.uuid)
                     entry.processed = True
-                    session.add(entry)
                     session.commit()
                     log.debug('entry.processed = {0}'.format(entry.processed))
             elif result.available:
