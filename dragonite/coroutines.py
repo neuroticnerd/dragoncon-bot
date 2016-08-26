@@ -30,7 +30,7 @@ def monkey_patch():
 
 
 class CrawlerGroup(Group):
-    """ gevent Group with extra method to determine greenlet status. """
+    """ Normal gevent Group with extra method to determine greenlet status. """
     def alive(self):
         for greenlet in self.greenlets:
             if not greenlet.ready():

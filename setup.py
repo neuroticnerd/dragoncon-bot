@@ -1,29 +1,31 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
-from __future__ import division, print_function
 
 import io
+import os
 import re
 
 from setuptools import find_packages, setup
+
+here = os.path.abspath(os.path.dirname(__file__))
 
 
 PROJECT_MODULE = 'dragonite'
 PROJECT = 'dragonite'
 AUTHOR = 'Bryce Eggleton'
 EMAIL = 'eggleton.bryce@gmail.com'
-DESC = 'Python utilities and tools'
+DESC = 'Dragon Con command line utility'
+LONG_DESC = ''
+KEYWORDS = ('dragonite', 'dragoncon', 'dragon', 'con')
 URL = "https://github.com/neuroticnerd/dragoncon-bot"
 REQUIRES = []
-DEPENDSON = [
-    'https://github.com/neuroticnerd/armory/tarball/master#egg=armory-0.1.1',
-]
 EXTRAS = {
     'dev': (
-        'flake8>=2.5.0',
-        'pytest>=2.8.4',
-        'coverage>=4.0.3',
+        'flake8 >= 2.5.0',
+        'twine >= 1.8.1',
+        'pytest >= 2.8.4',
+        'coverage >= 4.0.3',
     ),
     # 'caching': (
     #     'redis>=2.10.3',
@@ -34,55 +36,53 @@ SCRIPTS = {
     "console_scripts": [
         'dragonite = dragonite.cli:dragonite',
     ]}
-LONG_DESC = ''
-LICENSE = ''
+LICENSE = 'Apache License, Version 2.0'
 VERSION = ''
 CLASSIFIERS = [
     'Environment :: Console',
-    'Topic :: Utilities',
+    'License :: OSI Approved :: Apache Software License',
+    'Natural Language :: English',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 2',
     'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.5',
+    'Topic :: Utilities',
 ]
 
-version_file = '{0}/__init__.py'.format(PROJECT_MODULE)
-ver_find = r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']'
+version_file = os.path.join(here, '{0}/__init__.py'.format(PROJECT_MODULE))
+ver_find = r'^\s*__version__\s*=\s*[\"\'](.*)[\"\']$'
 with io.open(version_file, 'r', encoding='utf-8') as ver_file:
     VERSION = re.search(ver_find, ver_file.read(), re.MULTILINE).group(1)
 
-with io.open('README.md', 'r', encoding='utf-8') as f:
+readme_file = os.path.join(here, 'README.rst')
+with io.open(readme_file, 'r', encoding='utf-8') as f:
     LONG_DESC = f.read()
 
-with io.open('LICENSE', 'r', encoding='utf-8') as f:
-    LICENSE = f.read()
-
-with io.open('reqs', 'r') as reqs_file:
+requirements_file = os.path.join(here, 'requirements.txt')
+with io.open(requirements_file, 'r') as reqs_file:
     for rawline in reqs_file:
         line = rawline.strip()
-        if line.startswith('-e git://'):
-            base = line.split('://')[-1]
-            egg = base.split('#')[-1]
-            url = base.split('.git#')[0]
-            repo = url.split('/')[-1]
-            dependency = 'https://{url}/tarball/master#{egg}'.format(
-                url=url,
-                egg=egg,
-            )
-            DEPENDSON.append(dependency)
-        else:
-            REQUIRES.append(line)
+        if line.startswith('http'):
+            continue
+        REQUIRES.append(' >= '.join(line.split('==')))
 
-setup(
-    name=PROJECT,
-    version=VERSION,
-    packages=find_packages(include=[PROJECT_MODULE]),
-    author=AUTHOR,
-    author_email=EMAIL,
-    url=URL,
-    description=DESC,
-    long_description=LONG_DESC,
-    license=LICENSE,
-    install_requires=REQUIRES,
-    dependency_links=DEPENDSON,
-    entry_points=SCRIPTS,
-    extras_require=EXTRAS,
-)
+if __name__ == '__main__':
+    setup(
+        name=PROJECT,
+        version=VERSION,
+        packages=find_packages(include=[PROJECT_MODULE + '*']),
+        author=AUTHOR,
+        author_email=EMAIL,
+        url=URL,
+        description=DESC,
+        long_description=LONG_DESC,
+        classifiers=CLASSIFIERS,
+        platforms=('any',),
+        license=LICENSE,
+        keywords=KEYWORDS,
+        install_requires=REQUIRES,
+        extras_require=EXTRAS,
+        entry_points=SCRIPTS,
+    )
