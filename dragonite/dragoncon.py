@@ -127,23 +127,16 @@ class DragonCon(object):
             log.warning(w)
         coroutines.monkey_patch()
         log.debug('gevent monkey patching done')
-
-        try:
-            log.debug('fetching event info...')
-            dcstr = '{0}'.format(self.event_info)
-            log.debug(dcstr)
-            if info_only:
-                log.debug('info only; terminating')
-                return True
-            log.debug('spawning tasks...')
-            hotels = coroutines.check_room_availability(
-                self.checkin,
-                self.checkout
-            )
-            log.debug([h.value for h in hotels])
-        except KeyboardInterrupt:
-            log.error('terminating program due to KeyboardInterrupt')
-        except requests.exceptions.ConnectionError as e:
-            log.debug('{0}'.format(e))
-            log.error('internet connection error; aborting!')
+        log.debug('fetching event info...')
+        dcstr = '{0}'.format(self.event_info)
+        log.debug(dcstr)
+        if info_only:
+            log.debug('info only; terminating')
+            return True
+        log.debug('spawning tasks...')
+        hotels = coroutines.check_room_availability(
+            self.checkin,
+            self.checkout
+        )
+        log.debug([h.value for h in hotels])
         log.info('dragoncon bot exiting\n')

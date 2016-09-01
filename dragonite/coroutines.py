@@ -12,6 +12,8 @@ import gevent.monkey
 from gevent.pool import Group
 from gevent.queue import Queue
 
+import requests
+
 from . import beaker, scrapers
 from .conf import settings
 from .utils import LogAndForget
@@ -51,30 +53,36 @@ def check_room_availability(start, end):
     however, sessions are not intended to be shared across threads of
     execution. That is why new sessions are created in the coroutines.
     """
-    if settings.use_db:
-        global invocation
-        beaker.init_database()
-        session = beaker.create_session()
-        invocation = beaker.Invocation(**settings.dict())
-        session.add(invocation)
-        session.commit()
-        log.debug('invocation = {0}'.format(invocation))
-        session.close()
+    try:
+        if settings.use_db:
+            global invocation
+            beaker.init_database()
+            session = beaker.create_session()
+            invocation = beaker.Invocation(**settings.dict())
+            session.add(invocation)
+            session.commit()
+            log.debug('invocation = {0}'.format(invocation))
+            session.close()
 
-    log.debug('spawning room availability monitors')
-    hotel_scrapers = scrapers.get_scrapers(start, end)
+        log.debug('spawning room availability monitors')
+        hotel_scrapers = scrapers.get_scrapers(start, end)
 
-    crawlers = CrawlerGroup()
-    for scraper in hotel_scrapers:
-        crawlers.spawn(_monitor_rooms, scraper)
-    processor = gevent.spawn(_result_processor)
+        crawlers = CrawlerGroup()
+        for scraper in hotel_scrapers:
+            crawlers.spawn(_monitor_rooms, scraper)
+        processor = gevent.spawn(_result_processor)
 
-    crawlers.join()
+        crawlers.join()
 
-    result_queue.put(StopIteration)
-    processor.join(timeout=10)
-    if not processor.ready():
-        processor.kill()
+        result_queue.put(StopIteration)
+        processor.join(timeout=10)
+        if not processor.ready():
+            processor.kill()
+    except KeyboardInterrupt:
+        log.error('terminating program due to KeyboardInterrupt')
+    except requests.exceptions.ConnectionError as e:
+        log.debug('{0}'.format(e))
+        log.error('internet connection error; aborting!')
 
     return crawlers
 
