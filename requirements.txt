@@ -1,5 +1,5 @@
 armory==0.1.2
-requests==2.8.1
+requests==2.20.0
 lxml==3.4.4
 greenlet==0.4.9
 gevent==1.1b6
