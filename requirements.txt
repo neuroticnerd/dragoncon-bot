@@ -1,6 +1,6 @@
 armory==0.1.2
 requests==2.8.1
-lxml==3.4.4
+lxml==4.6.5
 greenlet==0.4.9
 gevent==1.1b6
 beautifulsoup4==4.4.1
